@@ -24,7 +24,7 @@
     </div>
 
     <div class="flex flex-1 overflow-hidden">
-        {{-- ===================== Sidebar (árvore) ===================== --}}
+        {{-- ===================== Sidebar (árvorea) ===================== --}}
         <div class="transition-all duration-300 ease-in-out border-r border-teal-800 flex flex-col bg-white overflow-hidden shrink-0"
              :class="$wire.showTree ? 'w-72' : 'w-0'">
             <div class="bg-teal-700 font-semibold text-white px-4 h-9 flex items-center shrink-0">
