@@ -1,6 +1,6 @@
 <div
     class="fm-root flex flex-col h-full w-full bg-gray-50 text-gray-800 select-none"
-    x-data="fileManager({ picker: @js($pickerMode), multiple: @js($multiple) })"
+    x-data="fileManager({ picker: @js($pickerMode), multiple: @js($multiple), view: @js($viewMode) })"
     @keydown.escape.window="closeAll()"
 >
     {{-- ===================== Toolbar ===================== --}}
@@ -95,8 +95,8 @@
                             <div class="h-px bg-gray-100 my-1.5 mx-2"></div>
                             <p class="px-4 py-1 text-[10px] font-bold uppercase tracking-wider text-gray-400">@lang('file-manager::file-manager.view_mode')</p>
                             @foreach (['grid' => __('file-manager::file-manager.grid'), 'list' => __('file-manager::file-manager.list')] as $id => $label)
-                                <button type="button" wire:click="setView('{{ $id }}')" @click="filterOpen=false"
-                                        class="w-full text-left px-4 py-2 hover:bg-teal-50 {{ $viewMode === $id ? 'bg-gray-100 font-semibold text-teal-900' : '' }}">{{ $label }}</button>
+                                <button type="button" @click="view='{{ $id }}'; filterOpen=false"
+                                        class="w-full text-left px-4 py-2 hover:bg-teal-50" :class="view==='{{ $id }}' ? 'bg-gray-100 font-semibold text-teal-900' : ''">{{ $label }}</button>
                             @endforeach
                         </div>
                     </div>
@@ -106,7 +106,7 @@
             {{-- Área de ficheiros (drop de upload do SO) --}}
             <div class="relative flex-1 overflow-y-auto fm-scroll"
                  wire:loading.class="opacity-60"
-                 @click.self="$wire.clearSelection()"
+                 @click.self="selected = []"
                  @contextmenu.self.prevent="openBackgroundMenu($event)"
                  @dragover.prevent="onDragOverUpload($event)"
                  @dragleave="uploadHover = false"

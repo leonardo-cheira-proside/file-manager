@@ -8,7 +8,7 @@
 
     @if ($this->inTrash)
         {{-- Ações do lixo: restaurar / eliminar definitivamente --}}
-        <button type="button" @click="$wire.restore(targetPaths()); menu.open=false"
+        <button type="button" @click="$wire.restore(targetPaths()); selected=[]; menu.open=false"
                 class="w-full text-left px-4 py-2.5 hover:bg-teal-50 flex items-center gap-2">
             <svg class="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7v6h6M3 13a9 9 0 103-7.7L3 8"/></svg>
             <span>@lang('file-manager::file-manager.restore')</span>
@@ -22,7 +22,7 @@
     @else
         {{-- Selecionar todos (no fundo) --}}
         <template x-if="menu.file && menu.file.type === 'background'">
-            <button type="button" @click="$wire.selectAll(); menu.open=false"
+            <button type="button" @click="selectAllVisible()"
                     class="w-full text-left px-4 py-2.5 hover:bg-teal-50 flex items-center gap-2">
                 <svg class="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 <span>@lang('file-manager::file-manager.select_all')</span>

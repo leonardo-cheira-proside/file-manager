@@ -17,10 +17,13 @@
         return days + 'd ' + hours + 'h';
     };
 
-    window.prosideFileManager = function ({ picker, multiple }) {
+    window.prosideFileManager = function ({ picker, multiple, view }) {
         return {
             picker, multiple,
-            view: 'grid',
+            // Estado de UI puramente no cliente (Alpine persiste entre re-renders
+            // do Livewire). Nada de entangle: em Livewire v4 devolve um wrapper,
+            // não um array nativo.
+            view: view || 'grid',
             selected: [],
             filterOpen: false,
             fabOpen: false,
@@ -30,20 +33,22 @@
             light: { open: false, url: '', type: '' },
 
             init() {
-                // Estado partilhado com o servidor (instantâneo no cliente).
-                this.view = this.$wire.entangle('viewMode');
-                this.selected = this.$wire.entangle('selected');
-
                 // Abertura de modal a partir do FAB / outros emissores.
                 this.$root.addEventListener('fm-modal', (e) => this.openModal(e.detail));
             },
 
-            // ---------- Seleção ----------
-            isSelected(path) { return (this.selected || []).includes(path); },
+            // ---------- Seleção (cliente) ----------
+            isSelected(path) { return Array.isArray(this.selected) && this.selected.includes(path); },
             toggleSelect(path, shift) {
+                if (!Array.isArray(this.selected)) this.selected = [];
                 if (!shift) { this.selected = [path]; return; }
                 const i = this.selected.indexOf(path);
                 if (i > -1) this.selected.splice(i, 1); else this.selected.push(path);
+            },
+            selectAllVisible() {
+                const paths = [...this.$root.querySelectorAll('[data-fm-path]')].map((el) => el.dataset.fmPath);
+                this.selected = [...new Set(paths)];
+                this.menu.open = false;
             },
             targetPaths() {
                 if (this.menu.files && this.menu.files.length) return [...this.menu.files];
@@ -102,7 +107,7 @@
                 const m = this.modal;
                 if (m.action === 'add') this.$wire.createFolder(m.text, m.path);
                 else if (m.action === 'rename') this.$wire.rename(m.file.path, m.text);
-                else if (m.action === 'delete') this.$wire.delete(this.targetPaths().length ? this.targetPaths() : [m.file.path]);
+                else if (m.action === 'delete') { this.$wire.delete(this.targetPaths().length ? this.targetPaths() : [m.file.path]); this.selected = []; }
                 this.modal.open = false;
             },
 
@@ -118,6 +123,7 @@
                 const items = JSON.parse(raw);
                 if (items.includes(target)) return;
                 this.$wire.moveItems(items, target);
+                this.selected = [];
             },
 
             // ---------- Upload (drag de ficheiros do SO) ----------
