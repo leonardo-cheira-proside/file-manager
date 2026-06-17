@@ -43,7 +43,7 @@
         <template x-for="(path, i) in selected" :key="i">
             <div class="relative group flex items-center">
                 <div class="w-14 h-14 rounded-lg overflow-hidden bg-gray-100 border border-gray-200 flex items-center justify-center shrink-0">
-                    <template x-if="isImage(path)"><img :src="preview(path)" class="w-full h-full object-cover" loading="lazy" @error="$el.style.display='none'" alt=""></template>
+                    <template x-if="isImage(path)"><img :src="preview(path)" class="w-full h-full object-cover" loading="lazy" @@error="$el.style.display='none'" alt=""></template>
                     <template x-if="isVideo(path)"><video :src="preview(path)" class="w-full h-full object-cover" muted></video></template>
                     <template x-if="path && !isImage(path) && !isVideo(path)">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
@@ -77,7 +77,7 @@
                 <livewire:file-manager
                     :picker-mode="true"
                     :multiple="$allowMultiple"
-                    :filter="$filter"
+                    :filter="$filter ?? 'all'"
                     :lock-filter="(bool) $filter"
                     lazy
                     wire:key="{{ $pickerId }}" />
