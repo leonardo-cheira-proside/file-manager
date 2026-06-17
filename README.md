@@ -121,7 +121,7 @@ funciona exatamente como antes. Ao escolher, o componente emite o evento Livewir
 | `trash_retention_days` | `30` | Dias até eliminação definitiva |
 | `uploads.max_size` | `51200` (KB) | Tamanho máximo por ficheiro |
 | `uploads.mimes` | `null` | Mimes aceites (null = todos) |
-| `media_url` | `auto` | `auto` / `route` / `storage` |
+| `media_url` | `route` | `route` (seguro, qualquer disco/nome) / `storage` (direto, mais rápido) / `auto` |
 | `route.*` | — | Prefixo, middleware e rota full-page |
 
 Variáveis `.env`: `FILE_MANAGER_DISK`, `FILE_MANAGER_ROOT`, `FILE_MANAGER_TRASH`,

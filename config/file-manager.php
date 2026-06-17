@@ -83,10 +83,15 @@ return [
     | Servir media
     |--------------------------------------------------------------------------
     |
-    | "auto"   -> usa Storage::url() em discos públicos, senão a rota interna
-    | "route"  -> serve sempre via rota interna (respeita auth, qualquer disco)
-    | "storage"-> usa sempre Storage::url() (apenas discos públicos)
+    | "route"  -> serve via rota interna (respeita auth, qualquer disco, e
+    |             codifica o path — seguro com nomes que tenham "+", espaços,
+    |             etc.). É o default por ser à prova de bala. Nota: o
+    |             `php artisan serve` faz urldecode aos paths estáticos, pelo
+    |             que Storage::url() falha com ficheiros que tenham "+" no nome.
+    | "storage"-> usa sempre Storage::url() (mais rápido; requer web server a
+    |             servir o disco público e nomes de ficheiro URL-safe).
+    | "auto"   -> Storage::url() em discos públicos, senão a rota interna.
     |
     */
-    'media_url' => env('FILE_MANAGER_MEDIA_URL', 'auto'),
+    'media_url' => env('FILE_MANAGER_MEDIA_URL', 'route'),
 ];
