@@ -180,6 +180,23 @@ $schedule->command('file-manager:prune-trash')->daily();
 
 ---
 
+## 8. Permissões por utilizador (gflevel_ctvdir)
+
+Cada utilizador é confinado à pasta do seu perfil. Já está implementado:
+
+- `app/FileManager/LevelRootResolver.php` — lê os perfis (`gflevel`) ligados ao
+  utilizador (`gfleveluser`) e o campo `gflevel_ctvdir`. Devolve a raiz efetiva
+  (ex.: `conteudos/optivisao`) ou `null` para acesso total.
+- `config/file-manager.php` (publicado) — `'root_resolver' => \App\FileManager\LevelRootResolver::class`.
+
+Regras: `ctvdir` vazio / `root` / igual à raiz da config (`conteudos`) → **vê tudo**;
+caso contrário só vê `conteudos/<ctvdir>` para baixo. Se o utilizador tiver vários
+perfis, é usada a 1ª `ctvdir` (a menos que algum seja "acesso total"). O lixo mostra
+apenas o que esse utilizador apagou.
+
+> Para alterar a política (ex.: suportar várias raízes em simultâneo) basta editar
+> `LevelRootResolver`. O package é agnóstico ao modelo de dados.
+
 ## Resultado
 
 - O File Manager corre dentro do Backoffice, com a sessão/autenticação existentes.

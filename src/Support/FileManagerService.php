@@ -18,19 +18,76 @@ class FileManagerService
 
     protected PathGuard $guard;
 
+    /** Raiz definida na config (ex.: "conteudos"). */
+    protected string $configRoot;
+
+    /** Raiz efetiva do utilizador atual (igual à config = acesso total). */
+    protected string $effectiveRoot;
+
+    /** True se o utilizador está confinado a uma sub-raiz. */
+    protected bool $scoped;
+
     public function __construct(?string $disk = null)
     {
         $config = config('file-manager');
         $this->disk = Storage::disk($disk ?? $config['disk']);
-        $this->guard = new PathGuard($config['root'], $config['trash']);
+        $this->configRoot = $config['root'];
+        $this->effectiveRoot = $this->resolveEffectiveRoot($config);
+        $this->scoped = $this->effectiveRoot !== $this->configRoot;
+        $this->guard = new PathGuard($this->effectiveRoot, $config['trash']);
 
-        $this->ensureExists($config['root']);
+        $this->ensureExists($this->effectiveRoot);
         $this->ensureExists($config['trash']);
     }
 
     public function guard(): PathGuard
     {
         return $this->guard;
+    }
+
+    /** Raiz efetiva do utilizador (pode ser uma sub-pasta de configRoot). */
+    public function root(): string
+    {
+        return $this->effectiveRoot;
+    }
+
+    public function isScoped(): bool
+    {
+        return $this->scoped;
+    }
+
+    /**
+     * Resolve a raiz efetiva via o resolver configurado (class-string invocável
+     * ou callable). Devolve sempre um caminho válido confinado ao configRoot.
+     */
+    protected function resolveEffectiveRoot(array $config): string
+    {
+        $resolver = $config['root_resolver'] ?? null;
+        if (! $resolver) {
+            return $config['root'];
+        }
+
+        try {
+            $value = is_string($resolver) && class_exists($resolver)
+                ? app($resolver)()
+                : (is_callable($resolver) ? $resolver() : null);
+        } catch (\Throwable $e) {
+            report($e);
+            $value = null;
+        }
+
+        if ($value === null) {
+            return $config['root'];
+        }
+
+        $value = trim(str_replace('\\', '/', (string) $value), '/');
+
+        // Vazio, igual à raiz da config, ou fora dela => acesso total.
+        if ($value === '' || $value === $config['root'] || ! str_starts_with($value, $config['root'].'/')) {
+            return $config['root'];
+        }
+
+        return $value;
     }
 
     public function disk(): Filesystem
@@ -69,6 +126,17 @@ class FileManagerService
             'videos' => $folders->concat($files->where('type', 'video')->values()),
             default => $folders->concat($files),
         };
+
+        // Scoping: no lixo, um utilizador confinado só vê o que apagou de
+        // dentro da sua própria raiz (via originalPath na meta).
+        if ($this->scoped && $this->guard->isTrash($path)) {
+            $result = $result->filter(function ($entry) {
+                $origin = $this->readMeta($entry['path'])['originalPath'] ?? '';
+
+                return $origin === $this->effectiveRoot
+                    || str_starts_with($origin, $this->effectiveRoot.'/');
+            })->values();
+        }
 
         $result = $result->sort(function ($a, $b) use ($filter) {
             $cmp = strcasecmp($a['name'], $b['name']);

@@ -28,6 +28,25 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Root por utilizador (scoping de permissões)
+    |--------------------------------------------------------------------------
+    |
+    | Resolver opcional que devolve a pasta-raiz efetiva do utilizador atual
+    | (relativa ao disco, ex.: "conteudos/optivisao"). O utilizador só vê essa
+    | pasta para baixo. Devolver null/"" => acesso total (usa a raiz "root").
+    |
+    | Pode ser:
+    |  - class-string de uma classe invocável (__invoke(): ?string) [compatível
+    |    com config:cache] — RECOMENDADO;
+    |  - um callable (closure) — simples, mas impede config:cache.
+    |
+    | Exemplo (Backoffice): \App\FileManager\LevelRootResolver::class
+    |
+    */
+    'root_resolver' => null,
+
+    /*
+    |--------------------------------------------------------------------------
     | Retenção do lixo (dias)
     |--------------------------------------------------------------------------
     |

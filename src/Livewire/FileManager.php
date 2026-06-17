@@ -55,7 +55,7 @@ class FileManager extends Component
         bool $multiple = false,
         bool $lockFilter = false,
     ): void {
-        $this->path = $path ?: config('file-manager.root');
+        $this->path = $path ?: $this->service()->root();
         $this->filter = $filter ?: 'all';
         $this->pickerMode = $pickerMode;
         $this->multiple = $multiple;
@@ -103,11 +103,16 @@ class FileManager extends Component
     #[Computed]
     public function breadcrumbs(): array
     {
+        // Breadcrumbs a partir da raiz efetiva (não expõe segmentos acima dela).
+        $rootDepth = count(explode('/', $this->service()->root()));
         $segments = explode('/', $this->path);
         $crumbs = [];
         $acc = [];
-        foreach ($segments as $segment) {
+        foreach ($segments as $i => $segment) {
             $acc[] = $segment;
+            if ($i < $rootDepth - 1) {
+                continue;
+            }
             $crumbs[] = ['label' => $segment, 'path' => implode('/', $acc)];
         }
 
@@ -118,6 +123,20 @@ class FileManager extends Component
     public function inTrash(): bool
     {
         return $this->service()->guard()->isTrash($this->path);
+    }
+
+    /** Caminho da raiz efetiva (para o link da sidebar). */
+    #[Computed]
+    public function rootPath(): string
+    {
+        return $this->service()->root();
+    }
+
+    /** Etiqueta da raiz (último segmento; "conteudos" em acesso total). */
+    #[Computed]
+    public function rootLabel(): string
+    {
+        return basename($this->service()->root());
     }
 
     // ===========================================================
@@ -296,9 +315,16 @@ class FileManager extends Component
 
     protected function parentPath(string $path): string
     {
-        $parent = trim(dirname($path), '.');
+        $root = $this->service()->root();
+        $parent = str_replace('\\', '/', dirname($path));
+        $parent = $parent === '.' ? '' : $parent;
 
-        return $parent ?: config('file-manager.root');
+        // Nunca subir acima da raiz efetiva.
+        if ($parent === '' || ! ($parent === $root || str_starts_with($parent, $root.'/'))) {
+            return $root;
+        }
+
+        return $parent;
     }
 
     public function render()

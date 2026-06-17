@@ -31,13 +31,13 @@
                 @lang('file-manager::file-manager.directories')
             </div>
             <div class="p-2 flex-1 overflow-y-auto fm-scroll">
-                {{-- Raiz "conteudos" --}}
-                <div wire:click="open('{{ config('file-manager.root') }}')"
-                     @dragover.prevent @drop.prevent="onDropMove($event, '{{ config('file-manager.root') }}')"
+                {{-- Raiz efetiva do utilizador --}}
+                <div wire:click="open(@js($this->rootPath))"
+                     @dragover.prevent @drop.prevent="onDropMove($event, @js($this->rootPath))"
                      class="flex items-center gap-2 px-2 py-1.5 mb-1 cursor-pointer rounded-md hover:bg-gray-100"
-                     :class="$wire.path === '{{ config('file-manager.root') }}' ? 'bg-gray-100 text-teal-700' : 'text-gray-700'">
+                     :class="$wire.path === @js($this->rootPath) ? 'bg-gray-100 text-teal-700' : 'text-gray-700'">
                     <svg class="h-4 w-4 shrink-0 text-teal-600" fill="currentColor" viewBox="0 0 20 20"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"/></svg>
-                    <span class="text-sm truncate">{{ config('file-manager.root') }}</span>
+                    <span class="text-sm truncate">{{ $this->rootLabel }}</span>
                 </div>
 
                 <ul class="ml-2">

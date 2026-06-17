@@ -88,6 +88,50 @@ class FileManagerServiceTest extends TestCase
         $s->listing('conteudos/../../etc');
     }
 
+    public function test_root_resolver_confines_user(): void
+    {
+        config(['file-manager.root_resolver' => fn () => 'conteudos/optivisao']);
+        $s = $this->service();
+
+        $this->assertSame('conteudos/optivisao', $s->root());
+        $this->assertTrue($s->isScoped());
+
+        $s->createFolder('conteudos/optivisao', 'fotos');
+        $this->assertContains(
+            'conteudos/optivisao/fotos',
+            array_column($s->listing('conteudos/optivisao'), 'path')
+        );
+
+        // Aceder acima da raiz efetiva é bloqueado.
+        $this->expectException(\InvalidArgumentException::class);
+        $s->listing('conteudos');
+    }
+
+    public function test_resolver_full_access_when_equals_config_root(): void
+    {
+        config(['file-manager.root_resolver' => fn () => 'conteudos']);
+        $s = $this->service();
+
+        $this->assertSame('conteudos', $s->root());
+        $this->assertFalse($s->isScoped());
+    }
+
+    public function test_trash_is_scoped_by_origin(): void
+    {
+        $full = $this->service();
+        $full->upload(UploadedFile::fake()->image('outside.png'), 'conteudos');
+        $full->trash(['conteudos/outside.png']);
+
+        config(['file-manager.root_resolver' => fn () => 'conteudos/optivisao']);
+        $s = new FileManagerService();
+        $s->upload(UploadedFile::fake()->image('mine.png'), 'conteudos/optivisao');
+        $s->trash(['conteudos/optivisao/mine.png']);
+
+        $names = array_column($s->listing('apagados'), 'name');
+        $this->assertContains('mine.png', $names);
+        $this->assertNotContains('outside.png', $names);
+    }
+
     public function test_rename_preserves_extension(): void
     {
         $s = $this->service();
