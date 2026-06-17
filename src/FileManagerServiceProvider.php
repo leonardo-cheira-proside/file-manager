@@ -25,6 +25,10 @@ class FileManagerServiceProvider extends ServiceProvider
         // resources/views/components/picker.blade.php.
         $this->loadViewsFrom(__DIR__.'/../resources/views', 'file-manager');
         $this->loadTranslationsFrom(__DIR__.'/../resources/lang', 'file-manager');
+        
+        $this->publishes([
+            __DIR__.'/../dist' => public_path('vendor/file-manager'),
+        ], 'file-manager-assets');
 
         // Rotas (full-page opcional + media).
         $this->loadRoutesFrom(__DIR__.'/../routes/web.php');
