@@ -10,6 +10,7 @@
 </head>
 <body class="h-full m-0 bg-gray-50">
     <div class="h-screen">
+        
         <livewire:file-manager />
     </div>
     @livewireScripts

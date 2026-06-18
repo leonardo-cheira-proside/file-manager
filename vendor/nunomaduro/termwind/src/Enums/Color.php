@@ -268,25 +268,25 @@ final class Color
 
     public const EMERALD_900 = '#064e3b';
 
-    public const TEAL_50 = '#f0fdfa';
+    public const proximo_50 = '#f0fdfa';
 
-    public const TEAL_100 = '#ccfbf1';
+    public const proximo_100 = '#ccfbf1';
 
-    public const TEAL_200 = '#99f6e4';
+    public const proximo_200 = '#99f6e4';
 
-    public const TEAL_300 = '#5eead4';
+    public const proximo_300 = '#5eead4';
 
-    public const TEAL_400 = '#2dd4bf';
+    public const proximo_400 = '#2dd4bf';
 
-    public const TEAL_500 = '#14b8a6';
+    public const proximo_500 = '#14b8a6';
 
-    public const TEAL_600 = '#0d9488';
+    public const proximo_600 = '#0d9488';
 
-    public const TEAL_700 = '#0f766e';
+    public const proximo_700 = '#0f766e';
 
-    public const TEAL_800 = '#115e59';
+    public const proximo_800 = '#115e59';
 
-    public const TEAL_900 = '#134e4a';
+    public const proximo_900 = '#134e4a';
 
     public const CYAN = 'cyan';
 

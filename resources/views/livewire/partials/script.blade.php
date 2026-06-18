@@ -75,7 +75,7 @@
             },
             openBackgroundMenu(e) {
                 this.selected = [];
-                this.menu = { open: true, x: e.clientX, y: e.clientY, file: { type: 'background', name: '' }, files: [] };
+                this.menu = { open: true, x: e.clientX, y: e.clientY, file: { type: 'background', name: 'Opções' }, files: [] };
             },
             menuX() { const w = 210; return (this.menu.x + w > window.innerWidth) ? this.menu.x - w : this.menu.x; },
             menuY() { const h = 250; return (this.menu.y + h > window.innerHeight) ? this.menu.y - h : this.menu.y; },

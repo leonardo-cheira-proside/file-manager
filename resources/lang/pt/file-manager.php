@@ -45,4 +45,12 @@ return [
     'select_file' => 'Selecionar ficheiro',
     'remove' => 'Remover',
     'library' => 'Biblioteca de ficheiros',
+    'info' => 'Informações',
+    'close' => 'Fechar',
+    'extension' => 'Extensão',
+    'path' => 'Caminho',
+    'type_folder' => 'Pasta',
+    'type_image' => 'Imagem',
+    'type_video' => 'Vídeo',
+    'type_file' => 'Ficheiro',
 ];

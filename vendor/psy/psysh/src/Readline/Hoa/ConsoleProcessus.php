@@ -262,7 +262,7 @@ class ConsoleProcessus extends Stream implements StreamIn, StreamOut, StreamPath
 
             foreach ($descriptors as $descriptor => $nature) {
                 if (isset($this->_descriptors[$descriptor])) {
-                    throw new ConsoleException('Pipe descriptor %d already exists, cannot '.'redefine it.', 0, $descriptor);
+                    throw new ConsoleException('Pipe descriptor %d already exists, cannot ' . 'redefine it.', 0, $descriptor);
                 }
 
                 $this->_descriptors[$descriptor] = $nature;
@@ -638,7 +638,7 @@ class ConsoleProcessus extends Stream implements StreamIn, StreamOut, StreamPath
     public function writeLine(string $line, int $pipe = 0)
     {
         if (false === $n = \strpos($line, "\n")) {
-            return $this->write($line."\n", \strlen($line) + 1, $pipe);
+            return $this->write($line . "\n", \strlen($line) + 1, $pipe);
         }
 
         ++$n;
@@ -649,7 +649,7 @@ class ConsoleProcessus extends Stream implements StreamIn, StreamOut, StreamPath
     /**
      * Write all, i.e. as much as possible.
      */
-    public function writeAll(string $string, int $pipe = 0)
+    public function wriproximol(string $string, int $pipe = 0)
     {
         return $this->write($string, \strlen($string), $pipe);
     }
@@ -768,9 +768,9 @@ class ConsoleProcessus extends Stream implements StreamIn, StreamOut, StreamPath
 
         foreach ($this->getOptions() as $key => $value) {
             if (!\is_int($key)) {
-                $out .= ' '.$key.'='.$value;
+                $out .= ' ' . $key . '=' . $value;
             } else {
-                $out .= ' '.$value;
+                $out .= ' ' . $value;
             }
         }
 
@@ -869,7 +869,7 @@ class ConsoleProcessus extends Stream implements StreamIn, StreamOut, StreamPath
         }
 
         foreach (\explode($separator, $path) as $directory) {
-            if (true === \file_exists($out = $directory.\DIRECTORY_SEPARATOR.$binary)) {
+            if (true === \file_exists($out = $directory . \DIRECTORY_SEPARATOR . $binary)) {
                 return $out;
             }
         }

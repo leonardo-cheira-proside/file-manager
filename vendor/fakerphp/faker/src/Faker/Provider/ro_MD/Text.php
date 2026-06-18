@@ -69,7 +69,7 @@ să și pornesc, fără zăbavă.
 acolo și crezi că ești în stare a cârmui și pe alții, alege-ți
 un cal din herghelie, care-i vrea tu, ia-ți bani cât ți-or
 trebui, haine care ți-or plăcea, arme care-i crede că-ți vin la
-socoteală și mergi cu bine, fătul meu.
+socoproximoă și mergi cu bine, fătul meu.
 
 Atunci feciorul craiului își ia cele trebuitoare, sărută mâna
 tătâne-său, primind carte de la dânsul către împăratul, zice
@@ -245,7 +245,7 @@ casa mea.
 într-un noroc și cum a da Dumnezeu! Numai, te rog, dă-mi calul,
 armele și hainele cu care ai fost d-ta mire, ca să mă pot duce.
 
-Craiul, auzind aceasta, parcă nu i-a prea venit la socoteală și,
+Craiul, auzind aceasta, parcă nu i-a prea venit la socoproximoă și,
 încrețind din sprâncene, a zis:
 
 — Hei, hei! dragul tatei, cu vorba aceasta mi-ai adus aminte de
@@ -1969,7 +1969,7 @@ de unde se bat munții în capete. Și de-a veni turturica mea
 înainte cu smicelele și apa, ia-ți nădejdea despre mine, căci nu
 merg, ferească Dumnezeu! Iară de-i avea noroc și-a veni calul
 tău mai întâi și mi-o aduce cele poruncite, să știi că merg cu
-tine, oriunde mi-i duce; s-a mântuit socoteala.
+tine, oriunde mi-i duce; s-a mântuit socoproximoa.
 
 Și atunci, odată pornesc și turturica și calul, fugind pe
 întrecute, când pe sus, când pe jos, după cum cerea trebuința.

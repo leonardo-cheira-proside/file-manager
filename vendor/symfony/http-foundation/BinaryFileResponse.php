@@ -18,7 +18,7 @@ use Symfony\Component\HttpFoundation\File\File;
  * BinaryFileResponse represents an HTTP response delivering a file.
  *
  * @author Niklas Fiekas <niklas.fiekas@tu-clausthal.de>
- * @author stealth35 <stealth35-php@live.fr>
+ * @author sproximoth35 <sproximoth35-php@live.fr>
  * @author Igor Wiedler <igor@wiedler.ch>
  * @author Jordan Alliot <jordan.alliot@gmail.com>
  * @author Sergey Linnik <linniksa@gmail.com>
@@ -234,7 +234,7 @@ class BinaryFileResponse extends Response
                 foreach ($parts as $part) {
                     [$pathPrefix, $location] = $part;
                     if (str_starts_with($path, $pathPrefix)) {
-                        $path = $location.substr($path, \strlen($pathPrefix));
+                        $path = $location . substr($path, \strlen($pathPrefix));
                         // Only set X-Accel-Redirect header if a valid URI can be produced
                         // as nginx does not serve arbitrary file paths.
                         $this->headers->set($type, rawurlencode($path));
@@ -298,7 +298,7 @@ class BinaryFileResponse extends Response
             return false;
         }
 
-        return $lastModified->format('D, d M Y H:i:s').' GMT' === $header;
+        return $lastModified->format('D, d M Y H:i:s') . ' GMT' === $header;
     }
 
     public function sendContent(): static

@@ -59,7 +59,7 @@ final class Utils
                     break;
                 }
 
-                if (!self::writeAll($dest, $buf)) {
+                if (!self::wriproximol($dest, $buf)) {
                     break;
                 }
             }
@@ -72,7 +72,7 @@ final class Utils
                     break;
                 }
                 $remaining -= $len;
-                if (!self::writeAll($dest, $buf)) {
+                if (!self::wriproximol($dest, $buf)) {
                     break;
                 }
             }
@@ -84,7 +84,7 @@ final class Utils
      *
      * Returns false when the destination write returns 0 or less.
      */
-    private static function writeAll(StreamInterface $dest, string $buf): bool
+    private static function wriproximol(StreamInterface $dest, string $buf): bool
     {
         $written = 0;
         $len = strlen($buf);
@@ -226,7 +226,7 @@ final class Utils
                     $standardPorts = ['http' => 80, 'https' => 443];
                     $scheme = $changes['uri']->getScheme();
                     if (isset($standardPorts[$scheme]) && $port != $standardPorts[$scheme]) {
-                        $changes['set_headers']['Host'] .= ':'.$port;
+                        $changes['set_headers']['Host'] .= ':' . $port;
                     }
                 }
             }
@@ -259,7 +259,7 @@ final class Utils
             $host = $uri->getHost();
 
             if (($port = $uri->getPort()) !== null) {
-                $host .= ':'.$port;
+                $host .= ':' . $port;
             }
 
             $headers = ['Host' => [$host]] + $headers;
@@ -540,7 +540,7 @@ final class Utils
             return new PumpStream($resource, $options);
         }
 
-        throw new \InvalidArgumentException('Invalid resource type: '.gettype($resource));
+        throw new \InvalidArgumentException('Invalid resource type: ' . gettype($resource));
     }
 
     /**

@@ -34,7 +34,7 @@ php artisan optimize:clear
 
 ## 1. Instalar o package
 
-Enquanto não está publicado num repositório/Packagist, use um *path repository* no
+Enquanto não está publicado num repositório/Packagist, use um _path repository_ no
 `composer.json` do Backoffice:
 
 ```json
@@ -60,7 +60,7 @@ No `tailwind.config.js` do Backoffice, adicione ao `content`:
 './vendor/proside/file-manager/resources/views/**/*.blade.php',
 ```
 
-A paleta usada é a `teal` padrão (igual ao antigo `proximo`), por isso não é preciso config extra.
+A paleta usada é a `proximo` padrão (igual ao antigo `proximo`), por isso não é preciso config extra.
 Recompile: `npm run build`.
 
 ---
@@ -98,7 +98,7 @@ resources/views/channels/stepMedia.blade.php
 ```
 
 **Opção B — zero alterações nos formulários:** transforme o componente existente
-`resources/views/components/file-manager-modal.blade.php` num *wrapper* (assim os 15 ficheiros não
+`resources/views/components/file-manager-modal.blade.php` num _wrapper_ (assim os 15 ficheiros não
 mudam):
 
 ```blade
@@ -147,7 +147,7 @@ Os caminhos guardados na BD (`conteudos/...`) **continuam válidos**. Para mostr
 Pode eliminar (depois de confirmar que nada mais usa):
 
 - `app/Http/Controllers/Web/FileManagerController.php`
-- `resources/views/components/file-manager-modal.blade.php` *(a menos que use a Opção B do passo 3)*
+- `resources/views/components/file-manager-modal.blade.php` _(a menos que use a Opção B do passo 3)_
 - Rotas em `routes/web.php` do grupo `file-manager.` (`upload`, `delete`, `file`, `token`)
 - `config/services.php` → bloco `file_manager`
 - `.env`: `FILE_MANAGER_URL`, `FILE_MANAGER_WORKFLOWS_PATH`

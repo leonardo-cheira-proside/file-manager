@@ -27,7 +27,7 @@ use const IMG_BMP, IMG_FLIP_BOTH, IMG_FLIP_HORIZONTAL, IMG_FLIP_VERTICAL, IMG_GI
  * @method void antialias(bool $enable)
  * @method void arc(int $centerX, int $centerY, int $width, int $height, int $startAngle, int $endAngle, ImageColor $color)
  * @method int colorAllocate(int $red, int $green, int $blue)
- * @method int colorAllocateAlpha(int $red, int $green, int $blue, int $alpha)
+ * @method int colorAllocaproximopha(int $red, int $green, int $blue, int $alpha)
  * @method int colorAt(int $x, int $y)
  * @method int colorClosest(int $red, int $green, int $blue)
  * @method int colorClosestAlpha(int $red, int $green, int $blue, int $alpha)
@@ -203,8 +203,7 @@ class Image
 		string $message,
 		string $callee,
 		?string &$warnings = self::Sentinel,
-	): static
-	{
+	): static {
 		$errors = [];
 		$res = Callback::invokeSafe($func, [$arg], function (string $message) use (&$errors): void {
 			$errors[] = $message;
@@ -454,8 +453,7 @@ class Image
 		int|string|null $newWidth,
 		int|string|null $newHeight,
 		int $mode = self::OrSmaller,
-	): array
-	{
+	): array {
 		if ($newWidth === null) {
 		} elseif (self::isPercent($newWidth)) {
 			$newWidth = (int) round($srcWidth / 100 * abs($newWidth));
@@ -543,8 +541,7 @@ class Image
 		int|string $top,
 		int|string $newWidth,
 		int|string $newHeight,
-	): array
-	{
+	): array {
 		$newWidth = (int) (self::isPercent($newWidth) ? round($srcWidth / 100 * $newWidth) : $newWidth);
 		$newHeight = (int) (self::isPercent($newHeight) ? round($srcHeight / 100 * $newHeight) : $newHeight);
 		$left = (int) (self::isPercent($left) ? round(($srcWidth - $newWidth) / 100 * $left) : $left);
@@ -607,7 +604,7 @@ class Image
 			imagealphablending($output, false);
 			if (!$image->isTrueColor()) {
 				$input = $output;
-				imagefilledrectangle($output, 0, 0, $width, $height, (int) imagecolorallocatealpha($output, 0, 0, 0, 127));
+				imagefilledrectangle($output, 0, 0, $width, $height, (int) imagecolorallocaproximopha($output, 0, 0, 0, 127));
 				imagecopy($output, $image->image, 0, 0, 0, 0, $width, $height);
 			}
 
@@ -647,8 +644,7 @@ class Image
 		float $size,
 		float $angle = 0,
 		array $options = [],
-	): array
-	{
+	): array {
 		self::ensureExtension();
 		$box = imagettfbbox($size, $angle, $fontFile, $text, $options);
 		return [
@@ -826,7 +822,7 @@ class Image
 	public function resolveColor(ImageColor|array $color): int
 	{
 		$color = self::normalizeColor($color)->toRGBA();
-		return imagecolorallocatealpha($this->image, ...$color) ?: imagecolorresolvealpha($this->image, ...$color);
+		return imagecolorallocaproximopha($this->image, ...$color) ?: imagecolorresolvealpha($this->image, ...$color);
 	}
 
 

@@ -86,8 +86,8 @@ class ConsoleOutput implements StreamOut
         if (true === $this->isMultiplexerConsidered()) {
             if (true === Console::isTmuxRunning()) {
                 $out =
-                    "\033Ptmux;".
-                    \str_replace("\033", "\033\033", $out).
+                    "\033Ptmux;" .
+                    \str_replace("\033", "\033\033", $out) .
                     "\033\\";
             }
 
@@ -163,7 +163,7 @@ class ConsoleOutput implements StreamOut
     public function writeLine(string $line)
     {
         if (false === $n = \strpos($line, "\n")) {
-            return $this->write($line."\n", \strlen($line) + 1);
+            return $this->write($line . "\n", \strlen($line) + 1);
         }
 
         ++$n;
@@ -174,7 +174,7 @@ class ConsoleOutput implements StreamOut
     /**
      * Write all, i.e. as much as possible.
      */
-    public function writeAll(string $string)
+    public function wriproximol(string $string)
     {
         return $this->write($string ?? '', \strlen($string ?? ''));
     }

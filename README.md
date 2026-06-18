@@ -20,9 +20,9 @@ e usa a autenticação/sessão existente.
 - Upload por botão flutuante (FAB) **e** por arrastar ficheiros do sistema
 - Mover por drag & drop (incluindo múltiplos itens) para pastas ou para a árvore
 - **Lixo** (`apagados`) com retenção configurável e expiração automática
-- **Restaurar** itens do lixo *(novo)* e eliminação definitiva
+- **Restaurar** itens do lixo _(novo)_ e eliminação definitiva
 - Pré-visualização (lightbox) de imagens e vídeos
-- Pesquisa funcional por nome *(o FM antigo não pesquisava)*
+- Pesquisa funcional por nome _(o FM antigo não pesquisava)_
 - Pronto para **picker** de ficheiros em formulários (`<x-file-manager::picker>`)
 - Multi-disco (local/public, S3, …) via Filesystem do Laravel
 - Traduções PT/EN, totalmente publicáveis
@@ -57,7 +57,7 @@ php artisan vendor:publish --tag=file-manager-assets    # public/vendor/file-man
 
 ### 3. Tailwind (importante)
 
-O package usa classes utilitárias Tailwind (paleta `teal`, equivalente ao antigo `proximo`).
+O package usa classes utilitárias Tailwind (paleta `proximo`, equivalente ao antigo `proximo`).
 Se a sua app compila Tailwind, adicione o caminho das vistas do package ao `content` do
 `tailwind.config.js` para que as classes sejam geradas:
 
@@ -111,18 +111,42 @@ funciona exatamente como antes. Ao escolher, o componente emite o evento Livewir
 
 ---
 
+## Permissões por utilizador (scoping)
+
+O File Manager pode confinar cada utilizador a uma pasta-raiz própria. Define um
+**resolver** que devolve a raiz efetiva do utilizador atual (relativa ao disco) ou
+`null` para acesso total:
+
+```php
+// config/file-manager.php
+'root_resolver' => \App\FileManager\LevelRootResolver::class, // invocável: __invoke(): ?string
+```
+
+Regras aplicadas pelo package quando há resolver:
+
+- devolve `null`, `''`, ou um valor igual à raiz da config → **acesso total**;
+- devolve `"conteudos/optivisao"` → o utilizador só vê **essa pasta para baixo**
+  (árvore, breadcrumbs, navegação e operações ficam confinadas; aceder acima é
+  bloqueado por `PathGuard`); o **lixo** mostra apenas o que esse utilizador apagou
+  (via `originalPath`).
+
+Exemplo de resolver (Backoffice Proside — perfil `gflevel` ligado por `gfleveluser`,
+campo `gflevel_ctvdir`): ver [`docs/BACKOFFICE-INTEGRATION.md`](docs/BACKOFFICE-INTEGRATION.md).
+O resolver pode ser um **class-string invocável** (compatível com `config:cache`) ou um `callable`.
+
 ## Configuração (`config/file-manager.php`)
 
-| Chave | Omissão | Descrição |
-|---|---|---|
-| `disk` | `public` | Disco do Filesystem |
-| `root` | `conteudos` | Pasta base navegável |
-| `trash` | `apagados` | Pasta do lixo |
-| `trash_retention_days` | `30` | Dias até eliminação definitiva |
-| `uploads.max_size` | `51200` (KB) | Tamanho máximo por ficheiro |
-| `uploads.mimes` | `null` | Mimes aceites (null = todos) |
-| `media_url` | `route` | `route` (seguro, qualquer disco/nome) / `storage` (direto, mais rápido) / `auto` |
-| `route.*` | — | Prefixo, middleware e rota full-page |
+| Chave                  | Omissão      | Descrição                                                                        |
+| ---------------------- | ------------ | -------------------------------------------------------------------------------- |
+| `disk`                 | `public`     | Disco do Filesystem                                                              |
+| `root`                 | `conteudos`  | Pasta base navegável                                                             |
+| `trash`                | `apagados`   | Pasta do lixo                                                                    |
+| `trash_retention_days` | `30`         | Dias até eliminação definitiva                                                   |
+| `root_resolver`        | `null`       | Resolver da raiz por utilizador (scoping); `null` = acesso total                 |
+| `uploads.max_size`     | `51200` (KB) | Tamanho máximo por ficheiro                                                      |
+| `uploads.mimes`        | `null`       | Mimes aceites (null = todos)                                                     |
+| `media_url`            | `route`      | `route` (seguro, qualquer disco/nome) / `storage` (direto, mais rápido) / `auto` |
+| `route.*`              | —            | Prefixo, middleware e rota full-page                                             |
 
 Variáveis `.env`: `FILE_MANAGER_DISK`, `FILE_MANAGER_ROOT`, `FILE_MANAGER_TRASH`,
 `FILE_MANAGER_TRASH_DAYS`, `FILE_MANAGER_MAX_UPLOAD`, `FILE_MANAGER_MEDIA_URL`,
@@ -132,23 +156,23 @@ Variáveis `.env`: `FILE_MANAGER_DISK`, `FILE_MANAGER_ROOT`, `FILE_MANAGER_TRASH
 
 ## Correspondência Next.js → Livewire
 
-| Antigo (Next.js/React) | Novo (Livewire v4) |
-|---|---|
-| `FileManagerContext.js` (estado global React) | Propriedades públicas + `#[Computed]` em `FileManager.php` |
-| `FileManager.jsx` (layout) | `resources/views/livewire/file-manager.blade.php` |
-| `Files.jsx` (grid/lista) | `partials/grid-item.blade.php`, `partials/list-item.blade.php` |
-| `NavItem.jsx` (árvore) | `partials/tree-node.blade.php` + `tree()` computed |
-| `ContextMenu.jsx` | `partials/context-menu.blade.php` (Alpine) |
-| `Modal.jsx` | `partials/modal.blade.php` (Alpine) |
-| `ShowFile.jsx` (lightbox) | `partials/lightbox.blade.php` |
-| `Filters.jsx`, `BreadCrumbs.js` | toolbar na view principal + `breadcrumbs()` |
-| `AddFile.jsx` (FAB + upload) | FAB na view + `wire:model="uploads"` + `updatedUploads()` |
-| `api/files`, `api/files/tree` | `FileManagerService::listing()` / `tree()` |
-| `api/folders`, `api/rename`, `api/move` | `createFolder()` / `rename()` / `move()` |
-| `api/delete`, `api/delete/cleanup` | `trash()` + `file-manager:prune-trash` |
-| `api/upload`, `image/route.js` | `upload()` + `MediaController` (rota `file-manager.media`) |
-| `verify-token`, `TokenListener.jsx` (JWT) | **eliminado** — usa auth/sessão do Laravel |
-| iframe + `postMessage(SELECTED_FILE)` | `<x-file-manager::picker>` + evento `file-manager-selected` |
+| Antigo (Next.js/React)                        | Novo (Livewire v4)                                             |
+| --------------------------------------------- | -------------------------------------------------------------- |
+| `FileManagerContext.js` (estado global React) | Propriedades públicas + `#[Computed]` em `FileManager.php`     |
+| `FileManager.jsx` (layout)                    | `resources/views/livewire/file-manager.blade.php`              |
+| `Files.jsx` (grid/lista)                      | `partials/grid-item.blade.php`, `partials/list-item.blade.php` |
+| `NavItem.jsx` (árvore)                        | `partials/tree-node.blade.php` + `tree()` computed             |
+| `ContextMenu.jsx`                             | `partials/context-menu.blade.php` (Alpine)                     |
+| `Modal.jsx`                                   | `partials/modal.blade.php` (Alpine)                            |
+| `ShowFile.jsx` (lightbox)                     | `partials/lightbox.blade.php`                                  |
+| `Filters.jsx`, `BreadCrumbs.js`               | toolbar na view principal + `breadcrumbs()`                    |
+| `AddFile.jsx` (FAB + upload)                  | FAB na view + `wire:model="uploads"` + `updatedUploads()`      |
+| `api/files`, `api/files/tree`                 | `FileManagerService::listing()` / `tree()`                     |
+| `api/folders`, `api/rename`, `api/move`       | `createFolder()` / `rename()` / `move()`                       |
+| `api/delete`, `api/delete/cleanup`            | `trash()` + `file-manager:prune-trash`                         |
+| `api/upload`, `image/route.js`                | `upload()` + `MediaController` (rota `file-manager.media`)     |
+| `verify-token`, `TokenListener.jsx` (JWT)     | **eliminado** — usa auth/sessão do Laravel                     |
+| iframe + `postMessage(SELECTED_FILE)`         | `<x-file-manager::picker>` + evento `file-manager-selected`    |
 
 ---
 

@@ -86,7 +86,7 @@ interface StreamOut extends IStream
     /**
      * Write all, i.e. as much as possible.
      */
-    public function writeAll(string $string);
+    public function wriproximol(string $string);
 
     /**
      * Truncate a stream to a given length.

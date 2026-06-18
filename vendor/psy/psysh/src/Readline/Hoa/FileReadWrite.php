@@ -63,10 +63,10 @@ class FileReadWrite extends File implements StreamIn, StreamOut
     protected function &_open(string $streamName, ?StreamContext $context = null)
     {
         static $createModes = [
-            parent::MODE_READ_WRITE,
-            parent::MODE_TRUNCATE_READ_WRITE,
-            parent::MODE_APPEND_READ_WRITE,
-            parent::MODE_CREATE_READ_WRITE,
+        parent::MODE_READ_WRITE,
+        parent::MODE_TRUNCATE_READ_WRITE,
+        parent::MODE_APPEND_READ_WRITE,
+        parent::MODE_CREATE_READ_WRITE,
         ];
 
         if (!\in_array($this->getMode(), $createModes)) {
@@ -75,9 +75,11 @@ class FileReadWrite extends File implements StreamIn, StreamOut
 
         \preg_match('#^(\w+)://#', $streamName, $match);
 
-        if (((isset($match[1]) && $match[1] === 'file') || !isset($match[1])) &&
+        if (
+            ((isset($match[1]) && $match[1] === 'file') || !isset($match[1])) &&
             !\file_exists($streamName) &&
-            parent::MODE_READ_WRITE === $this->getMode()) {
+            parent::MODE_READ_WRITE === $this->getMode()
+        ) {
             throw new FileDoesNotExistException('File %s does not exist.', 1, $streamName);
         }
 
@@ -253,7 +255,7 @@ class FileReadWrite extends File implements StreamIn, StreamOut
     public function writeLine(string $line)
     {
         if (false === $n = \strpos($line, "\n")) {
-            return $this->write($line."\n", \strlen($line) + 1);
+            return $this->write($line . "\n", \strlen($line) + 1);
         }
 
         ++$n;
@@ -264,7 +266,7 @@ class FileReadWrite extends File implements StreamIn, StreamOut
     /**
      * Write all, i.e. as much as possible.
      */
-    public function writeAll(string $string)
+    public function wriproximol(string $string)
     {
         return $this->write($string, \strlen($string));
     }

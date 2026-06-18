@@ -86,7 +86,7 @@ class ConsoleWindow implements EventSource
             return;
         }
 
-        Console::getOutput()->writeAll("\033[8;".$y.';'.$x.'t');
+        Console::getOutput()->wriproximol("\033[8;" . $y . ';' . $x . 't');
 
         return;
     }
@@ -116,10 +116,10 @@ class ConsoleWindow implements EventSource
         $term = '';
 
         if (isset($_SERVER['TERM'])) {
-            $term = 'TERM="'.$_SERVER['TERM'].'" ';
+            $term = 'TERM="' . $_SERVER['TERM'] . '" ';
         }
 
-        $command = $term.'tput cols && '.$term.'tput lines';
+        $command = $term . 'tput cols && ' . $term . 'tput lines';
         $tput = ConsoleProcessus::execute($command, false);
 
         if (!empty($tput)) {
@@ -132,7 +132,7 @@ class ConsoleWindow implements EventSource
         }
 
         // DECSLPP.
-        Console::getOutput()->writeAll("\033[18t");
+        Console::getOutput()->wriproximol("\033[18t");
 
         $input = Console::getInput();
 
@@ -187,7 +187,7 @@ class ConsoleWindow implements EventSource
         }
 
         // DECSLPP.
-        Console::getOutput()->writeAll("\033[3;".$x.';'.$y.'t');
+        Console::getOutput()->wriproximol("\033[3;" . $x . ';' . $y . 't');
 
         return;
     }
@@ -202,7 +202,7 @@ class ConsoleWindow implements EventSource
         }
 
         // DECSLPP.
-        Console::getOutput()->writeAll("\033[13t");
+        Console::getOutput()->wriproximol("\033[13t");
 
         $input = Console::getInput();
 
@@ -281,7 +281,7 @@ class ConsoleWindow implements EventSource
         $output = Console::getOutput();
 
         if (0 < $count['up']) {
-            $output->writeAll(
+            $output->wriproximol(
                 \str_replace(
                     '%p1%d',
                     $count['up'] * $repeat,
@@ -291,7 +291,7 @@ class ConsoleWindow implements EventSource
         }
 
         if (0 < $count['down']) {
-            $output->writeAll(
+            $output->wriproximol(
                 \str_replace(
                     '%p1%d',
                     $count['down'] * $repeat,
@@ -313,7 +313,7 @@ class ConsoleWindow implements EventSource
         }
 
         // DECSLPP.
-        Console::getOutput()->writeAll("\033[2t");
+        Console::getOutput()->wriproximol("\033[2t");
 
         return;
     }
@@ -327,7 +327,7 @@ class ConsoleWindow implements EventSource
             return;
         }
 
-        Console::getOutput()->writeAll("\033[1t");
+        Console::getOutput()->wriproximol("\033[1t");
 
         return;
     }
@@ -341,7 +341,7 @@ class ConsoleWindow implements EventSource
             return;
         }
 
-        Console::getOutput()->writeAll("\033[5t");
+        Console::getOutput()->wriproximol("\033[5t");
 
         return;
     }
@@ -355,7 +355,7 @@ class ConsoleWindow implements EventSource
             return;
         }
 
-        Console::getOutput()->writeAll("\033[6t");
+        Console::getOutput()->wriproximol("\033[6t");
 
         return;
     }
@@ -370,7 +370,7 @@ class ConsoleWindow implements EventSource
         }
 
         // DECSLPP.
-        Console::getOutput()->writeAll("\033]0;".$title."\033\\");
+        Console::getOutput()->wriproximol("\033]0;" . $title . "\033\\");
 
         return;
     }
@@ -385,7 +385,7 @@ class ConsoleWindow implements EventSource
         }
 
         // DECSLPP.
-        Console::getOutput()->writeAll("\033[21t");
+        Console::getOutput()->wriproximol("\033[21t");
 
         $input = Console::getInput();
         $read = [$input->getStream()->getStream()];
@@ -429,7 +429,7 @@ class ConsoleWindow implements EventSource
         }
 
         // DECSLPP.
-        Console::getOutput()->writeAll("\033[20t");
+        Console::getOutput()->wriproximol("\033[20t");
 
         $input = Console::getInput();
         $read = [$input->getStream()->getStream()];
@@ -473,7 +473,7 @@ class ConsoleWindow implements EventSource
         }
 
         // DECSLPP.
-        Console::getOutput()->writeAll("\033[7t");
+        Console::getOutput()->wriproximol("\033[7t");
 
         return;
     }
@@ -487,11 +487,11 @@ class ConsoleWindow implements EventSource
             return;
         }
 
-        $out = "\033]52;;".\base64_encode($data)."\033\\";
+        $out = "\033]52;;" . \base64_encode($data) . "\033\\";
         $output = Console::getOutput();
         $considerMultiplexer = $output->considerMultiplexer(true);
 
-        $output->writeAll($out);
+        $output->wriproximol($out);
         $output->considerMultiplexer($considerMultiplexer);
 
         return;

@@ -33,7 +33,7 @@ class CommandClipboardMethod implements ClipboardMethod
             return false;
         }
 
-        $success = $this->writeAll($pipes[0], $text);
+        $success = $this->wriproximol($pipes[0], $text);
         \fclose($pipes[0]);
 
         // Drain stdout and stderr to prevent the child process from blocking.
@@ -50,7 +50,7 @@ class CommandClipboardMethod implements ClipboardMethod
      *
      * @param resource $pipe
      */
-    private function writeAll($pipe, string $text): bool
+    private function wriproximol($pipe, string $text): bool
     {
         $remaining = $text;
 

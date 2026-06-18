@@ -16,17 +16,17 @@ use Symfony\Component\Translation\MessageCatalogue;
 /**
  * PoFileDumper generates a gettext formatted string representation of a message catalogue.
  *
- * @author Stealth35
+ * @author Sproximoth35
  */
 class PoFileDumper extends FileDumper
 {
     public function formatCatalogue(MessageCatalogue $messages, string $domain, array $options = []): string
     {
-        $output = 'msgid ""'."\n";
-        $output .= 'msgstr ""'."\n";
-        $output .= '"Content-Type: text/plain; charset=UTF-8\n"'."\n";
-        $output .= '"Content-Transfer-Encoding: 8bit\n"'."\n";
-        $output .= '"Language: '.$messages->getLocale().'\n"'."\n";
+        $output = 'msgid ""' . "\n";
+        $output .= 'msgstr ""' . "\n";
+        $output .= '"Content-Type: text/plain; charset=UTF-8\n"' . "\n";
+        $output .= '"Content-Transfer-Encoding: 8bit\n"' . "\n";
+        $output .= '"Language: ' . $messages->getLocale() . '\n"' . "\n";
         $output .= "\n";
 
         $newLine = false;
@@ -51,14 +51,14 @@ class PoFileDumper extends FileDumper
             $sourceRules = $this->getStandardRules($source);
             $targetRules = $this->getStandardRules($target);
             if (2 == \count($sourceRules) && [] !== $targetRules) {
-                $output .= \sprintf('msgid "%s"'."\n", $this->escape($sourceRules[0]));
-                $output .= \sprintf('msgid_plural "%s"'."\n", $this->escape($sourceRules[1]));
+                $output .= \sprintf('msgid "%s"' . "\n", $this->escape($sourceRules[0]));
+                $output .= \sprintf('msgid_plural "%s"' . "\n", $this->escape($sourceRules[1]));
                 foreach ($targetRules as $i => $targetRule) {
-                    $output .= \sprintf('msgstr[%d] "%s"'."\n", $i, $this->escape($targetRule));
+                    $output .= \sprintf('msgstr[%d] "%s"' . "\n", $i, $this->escape($targetRule));
                 }
             } else {
-                $output .= \sprintf('msgid "%s"'."\n", $this->escape($source));
-                $output .= \sprintf('msgstr "%s"'."\n", $this->escape($target));
+                $output .= \sprintf('msgid "%s"' . "\n", $this->escape($source));
+                $output .= \sprintf('msgstr "%s"' . "\n", $this->escape($target));
             }
         }
 
@@ -123,7 +123,7 @@ class PoFileDumper extends FileDumper
         $output = null;
 
         foreach ((array) $comments as $comment) {
-            $output .= \sprintf('#%s %s'."\n", $prefix, $comment);
+            $output .= \sprintf('#%s %s' . "\n", $prefix, $comment);
         }
 
         return $output;

@@ -34,7 +34,25 @@ class YamlFileLoader extends FileLoader
     use PrefixTrait;
 
     private const AVAILABLE_KEYS = [
-        'resource', 'type', 'prefix', 'path', 'host', 'schemes', 'methods', 'defaults', 'requirements', 'options', 'condition', 'controller', 'name_prefix', 'trailing_slash_on_root', 'locale', 'format', 'utf8', 'exclude', 'stateless',
+        'resource',
+        'type',
+        'prefix',
+        'path',
+        'host',
+        'schemes',
+        'methods',
+        'defaults',
+        'requirements',
+        'options',
+        'condition',
+        'controller',
+        'name_prefix',
+        'trailing_slash_on_root',
+        'locale',
+        'format',
+        'utf8',
+        'exclude',
+        'stateless',
     ];
     private YamlParser $yamlParser;
 
@@ -58,7 +76,7 @@ class YamlFileLoader extends FileLoader
         try {
             $parsedConfig = $this->yamlParser->parseFile($path, Yaml::PARSE_CONSTANT);
         } catch (ParseException $e) {
-            throw new \InvalidArgumentException(\sprintf('The file "%s" does not contain valid YAML: ', $path).$e->getMessage(), 0, $e);
+            throw new \InvalidArgumentException(\sprintf('The file "%s" does not contain valid YAML: ', $path) . $e->getMessage(), 0, $e);
         }
 
         $collection = new RouteCollection();
@@ -223,7 +241,7 @@ class YamlFileLoader extends FileLoader
             throw new \InvalidArgumentException(\sprintf('The definition of "%s" in "%s" must be an array.', $name, $path));
         }
         if (isset($config['alias'])) {
-            $this->validateAlias($config, $name, $path);
+            $this->validaproximoias($config, $name, $path);
 
             return;
         }
@@ -252,10 +270,10 @@ class YamlFileLoader extends FileLoader
         foreach ($config as $name => $config) {
             if (!str_starts_with($when = $name, 'when@')) {
                 $config = [$name => $config];
-            } elseif (!$this->env || 'when@'.$this->env !== $name) {
+            } elseif (!$this->env || 'when@' . $this->env !== $name) {
                 continue;
             } else {
-                $when .= '" when "@'.$this->env;
+                $when .= '" when "@' . $this->env;
             }
 
             foreach ($config as $name => $config) {
@@ -274,7 +292,7 @@ class YamlFileLoader extends FileLoader
      * @throws \InvalidArgumentException If one of the provided config keys is not supported,
      *                                   something is missing or the combination is nonsense
      */
-    private function validateAlias(array $config, string $name, string $path): void
+    private function validaproximoias(array $config, string $name, string $path): void
     {
         foreach ($config as $key => $value) {
             if (!\in_array($key, ['alias', 'deprecated'], true)) {

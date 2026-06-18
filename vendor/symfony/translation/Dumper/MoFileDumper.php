@@ -17,7 +17,7 @@ use Symfony\Component\Translation\MessageCatalogue;
 /**
  * MoFileDumper generates a gettext formatted string representation of a message catalogue.
  *
- * @author Stealth35
+ * @author Sproximoth35
  */
 class MoFileDumper extends FileDumper
 {
@@ -29,8 +29,8 @@ class MoFileDumper extends FileDumper
 
         foreach ($messages->all($domain) as $source => $target) {
             $offsets[] = array_map('strlen', [$sources, $source, $targets, $target]);
-            $sources .= "\0".$source;
-            $targets .= "\0".$target;
+            $sources .= "\0" . $source;
+            $targets .= "\0" . $target;
             ++$size;
         }
 
@@ -49,16 +49,16 @@ class MoFileDumper extends FileDumper
 
         foreach ($offsets as $offset) {
             $sourceOffsets .= $this->writeLong($offset[1])
-                          .$this->writeLong($offset[0] + $sourcesStart);
+                . $this->writeLong($offset[0] + $sourcesStart);
             $targetOffsets .= $this->writeLong($offset[3])
-                          .$this->writeLong($offset[2] + $sourcesStart + $sourcesSize);
+                . $this->writeLong($offset[2] + $sourcesStart + $sourcesSize);
         }
 
         return implode('', array_map($this->writeLong(...), $header))
-               .$sourceOffsets
-               .$targetOffsets
-               .$sources
-               .$targets;
+            . $sourceOffsets
+            . $targetOffsets
+            . $sources
+            . $targets;
     }
 
     protected function getExtension(): string
