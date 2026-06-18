@@ -1,11 +1,18 @@
 @php $fm = \Illuminate\Support\Js::from($file); @endphp
 <tr wire:key="list-{{ $file['path'] }}" data-fm-path="{{ $file['path'] }}" data-fm-type="{{ $file['type'] }}"
-    data-fm-name="{{ $file['name'] }}" data-fm-url="{{ $file['url'] }}" class="group cursor-pointer"
+    data-fm-name="{{ $file['name'] }}" data-fm-url="{{ $file['url'] }}" data-fm-ext="{{ $file['extension'] ?? '' }}"
+    data-fm-size="{{ $file['sizeFormatted'] ?? '' }}" data-fm-modified="{{ $file['modified'] ?? '' }}"
+    class="group cursor-pointer"
     :class="isSelected(@js($file['path'])) ? 'bg-proximo-100' : 'hover:bg-proximo-50'"
     @click="toggleSelect(@js($file['path']), $event.shiftKey)" @dblclick="openItem({{ $fm }})"
     @contextmenu.prevent="openMenu($event, {{ $fm }})" draggable="true"
     @dragstart="onDragStart($event, {{ $fm }})"
     @if ($file['type'] === 'folder') @dragover.prevent @drop.prevent="onDropMove($event, @js($file['path']))" @endif>
+    <td class="px-3 py-2 text-center w-10" @click.stop>
+        <input type="checkbox" :checked="isSelected(@js($file['path']))"
+            @change="toggleCheck(@js($file['path']))"
+            class="fm-check h-4 w-4 rounded border-gray-300 text-proximo-600 cursor-pointer align-middle">
+    </td>
     <td class="px-4 py-2 whitespace-nowrap overflow-hidden">
         <div class="flex items-center gap-3">
             @if ($file['type'] === 'folder')

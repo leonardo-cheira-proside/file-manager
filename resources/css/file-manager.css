@@ -1,14 +1,10 @@
-/* Proside File Manager — estilos base independentes do Tailwind */
-
-[x-cloak] { display: none !important; }
-
-.fm-root { font-family: ui-sans-serif, system-ui, sans-serif; }
-
-/* Scrollbar discreta nas áreas roláveis */
-.fm-scroll { scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
-.fm-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
-.fm-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
-.fm-scroll::-webkit-scrollbar-track { background: transparent; }
-
-/* Evita seleção de texto durante drag */
-.fm-root [draggable="true"] { -webkit-user-drag: element; }
+/* Proside File Manager
+ *
+ * Os estilos base do componente passaram a ser injetados via Livewire @assets
+ * (ver resources/views/livewire/partials/script.blade.php), para carregarem
+ * sempre que o componente é renderizado — página inteira, embebido ou picker —
+ * sem depender de `php artisan vendor:publish`.
+ *
+ * Este ficheiro fica disponível na tag "file-manager-assets" apenas para quem
+ * queira sobrepor/estender os estilos do package na sua aplicação.
+ */

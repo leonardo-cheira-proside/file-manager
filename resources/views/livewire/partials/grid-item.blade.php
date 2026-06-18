@@ -1,13 +1,23 @@
 @php $fm = \Illuminate\Support\Js::from($file); @endphp
 <div wire:key="grid-{{ $file['path'] }}" data-fm-path="{{ $file['path'] }}" data-fm-type="{{ $file['type'] }}"
-    data-fm-name="{{ $file['name'] }}" data-fm-url="{{ $file['url'] }}"
-    class="cursor-pointer w-40 p-4 border rounded-xl transition-all flex flex-col items-center justify-center text-center group"
+    data-fm-name="{{ $file['name'] }}" data-fm-url="{{ $file['url'] }}" data-fm-ext="{{ $file['extension'] ?? '' }}"
+    data-fm-size="{{ $file['sizeFormatted'] ?? '' }}" data-fm-modified="{{ $file['modified'] ?? '' }}"
+    class="relative cursor-pointer w-40 p-4 border rounded-xl transition-all flex flex-col items-center justify-center text-center group"
     :class="isSelected(@js($file['path'])) ? 'border-proximo-600 bg-proximo-50 ring-2 ring-proximo-200' :
         'border-gray-200 bg-white hover:border-proximo-300 hover:shadow-md'"
     title="{{ $file['name'] }}" @click="toggleSelect(@js($file['path']), $event.shiftKey)"
     @dblclick="openItem({{ $fm }})" @contextmenu.prevent="openMenu($event, {{ $fm }})"
     draggable="true" @dragstart="onDragStart($event, {{ $fm }})"
     @if ($file['type'] === 'folder') @dragover.prevent @drop.prevent="onDropMove($event, @js($file['path']))" @endif>
+
+    {{-- Checkbox de seleção (visível no hover ou quando selecionado) --}}
+    <div class="absolute top-2 left-2 z-10 transition-opacity"
+        :class="isSelected(@js($file['path'])) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'"
+        @click.stop>
+        <input type="checkbox" :checked="isSelected(@js($file['path']))"
+            @change="toggleCheck(@js($file['path']))"
+            class="fm-check h-4 w-4 rounded border-gray-300 text-proximo-600 cursor-pointer">
+    </div>
 
     @if ($file['type'] === 'folder')
         <svg class="h-14 w-14 text-proximo-600 group-hover:scale-110 transition-transform" fill="currentColor"
