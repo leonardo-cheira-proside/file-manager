@@ -323,35 +323,30 @@
 
                 @php $items = $this->files; @endphp
 
-                {{-- Vazio (sem itens: não renderiza grelha nem tabela, para o
-                     thead da lista não aparecer solto por baixo da mensagem) --}}
+                {{-- Vazio --}}
                 @if (count($items) === 0)
                     <div class="flex flex-col items-center justify-center py-20 text-gray-400">
                         <svg class="h-16 w-16 opacity-20 mb-4" fill="currentColor" viewBox="0 0 20 20">
                             <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
                         </svg>
                         <p class="text-sm">
-                            @if ($search !== '')
-                                {{ __('file-manager::file-manager.no_results') }}
-                            @elseif (in_array($filter, ['folders', 'images', 'videos', 'no-folder'], true))
-                                {{ __('file-manager::file-manager.no_filter_results') }}
-                            @elseif ($this->inTrash)
-                                {{ __('file-manager::file-manager.trash_empty') }}
-                            @else
-                                {{ __('file-manager::file-manager.empty') }}
-                            @endif
+                            {{ $search !== '' ? __('file-manager::file-manager.no_results') : __('file-manager::file-manager.empty') }}
                         </p>
                     </div>
-                @else
-                    {{-- GRID --}}
+                @endif
+
+                {{-- GRID --}}
+                @if (count($items) > 0)
                 <div x-show="view === 'grid'" @contextmenu.self.prevent="openBackgroundMenu($event)"
                     class="grid pt-2 grid-cols-[repeat(auto-fill,160px)] gap-2 justify-center content-start min-h-full">
                     @foreach ($items as $file)
                         @include('file-manager::livewire.partials.grid-item', ['file' => $file])
                     @endforeach
                 </div>
+                @endif
 
                 {{-- LISTA --}}
+                @if (count($items) > 0)
                 <table x-show="view === 'list'" x-cloak class="w-full text-left text-sm">
                     <thead class="bg-gray-50 sticky top-0 z-10 text-[11px] uppercase tracking-wide text-gray-600">
                         <tr>
@@ -406,7 +401,7 @@
 
         {{-- Barra de progresso de upload --}}
         <div wire:loading wire:target="uploads"
-            class="absolute bottom-28 right-10 z-40 w-40 h-2 bg-gray-200 rounded-full overflow-hidden">
+            class="fixed bottom-28 right-10 z-40 w-40 h-2 bg-gray-200 rounded-full overflow-hidden">
             <div class="h-full bg-proximo-500 animate-pulse w-full"></div>
         </div>
     @endunless
