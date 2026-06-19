@@ -113,13 +113,13 @@ funciona exatamente como antes. Ao escolher, o componente emite o evento Livewir
 
 ## Permissões por utilizador (scoping)
 
-O File Manager pode confinar cada utilizador a uma pasta-raiz própria. Define um
-**resolver** que devolve a raiz efetiva do utilizador atual (relativa ao disco) ou
-`null` para acesso total:
+O File Manager pode confinar cada utilizador a uma ou mais pastas-raiz próprias.
+Define um **resolver** que devolve a(s) raiz(es) efetiva(s) do utilizador atual
+(relativas ao disco), ou `null` para acesso total:
 
 ```php
 // config/file-manager.php
-'root_resolver' => \App\FileManager\LevelRootResolver::class, // invocável: __invoke(): ?string
+'root_resolver' => \App\FileManager\LevelRootResolver::class, // invocável: __invoke(): null|string|array
 ```
 
 Regras aplicadas pelo package quando há resolver:
@@ -129,6 +129,11 @@ Regras aplicadas pelo package quando há resolver:
   (árvore, breadcrumbs, navegação e operações ficam confinadas; aceder acima é
   bloqueado por `PathGuard`); o **lixo** mostra apenas o que esse utilizador apagou
   (via `originalPath`).
+- devolve um **array** (ex.: `['conteudos/a', 'conteudos/b']`) → o utilizador vê
+  **várias raízes**: cada uma aparece na sidebar com a sua árvore, abre-se na
+  primeira, e a navegação fica confinada a qualquer uma delas. Caminhos fora da
+  raiz da config são ignorados (não escalam privilégios). O lixo é partilhado,
+  filtrado pela origem de qualquer das raízes.
 
 Exemplo de resolver (Backoffice Proside — perfil `gflevel` ligado por `gfleveluser`,
 campo `gflevel_ctvdir`): ver [`docs/BACKOFFICE-INTEGRATION.md`](docs/BACKOFFICE-INTEGRATION.md).

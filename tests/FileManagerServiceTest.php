@@ -38,7 +38,7 @@ class FileManagerServiceTest extends TestCase
         $this->assertContains('pic.png', $names);
     }
 
-    public function test_filter_images_keeps_folders(): void
+    public function test_filter_images_hides_folders_and_other_files(): void
     {
         $s = $this->service();
         $s->createFolder('conteudos', 'Sub');
@@ -47,9 +47,23 @@ class FileManagerServiceTest extends TestCase
 
         $types = array_column($s->listing('conteudos', 'images'), 'type');
 
-        $this->assertContains('folder', $types);
         $this->assertContains('image', $types);
+        $this->assertNotContains('folder', $types);
         $this->assertNotContains('other', $types);
+    }
+
+    public function test_no_folder_filter_hides_folders_keeps_files(): void
+    {
+        $s = $this->service();
+        $s->createFolder('conteudos', 'Sub');
+        $s->upload(UploadedFile::fake()->image('pic.png'), 'conteudos');
+        $s->upload(UploadedFile::fake()->create('doc.pdf', 10), 'conteudos');
+
+        $types = array_column($s->listing('conteudos', 'no-folder'), 'type');
+
+        $this->assertNotContains('folder', $types);
+        $this->assertContains('image', $types);
+        $this->assertContains('other', $types);
     }
 
     public function test_trash_and_restore_roundtrip(): void
@@ -114,6 +128,41 @@ class FileManagerServiceTest extends TestCase
 
         $this->assertSame('conteudos', $s->root());
         $this->assertFalse($s->isScoped());
+    }
+
+    public function test_root_resolver_supports_multiple_roots(): void
+    {
+        config(['file-manager.root_resolver' => fn () => ['conteudos/a', 'conteudos/b']]);
+        $s = $this->service();
+
+        $this->assertSame('conteudos/a', $s->root()); // primária = primeira
+        $this->assertSame(['conteudos/a', 'conteudos/b'], $s->roots());
+        $this->assertTrue($s->isScoped());
+
+        // Pode navegar em ambas as raízes.
+        $s->createFolder('conteudos/a', 'x');
+        $s->createFolder('conteudos/b', 'y');
+        $this->assertContains('conteudos/a/x', array_column($s->listing('conteudos/a'), 'path'));
+        $this->assertContains('conteudos/b/y', array_column($s->listing('conteudos/b'), 'path'));
+    }
+
+    public function test_multiple_roots_block_outside_access(): void
+    {
+        config(['file-manager.root_resolver' => fn () => ['conteudos/a', 'conteudos/b']]);
+        $s = $this->service();
+
+        // Uma raiz não listada continua bloqueada.
+        $this->expectException(\InvalidArgumentException::class);
+        $s->listing('conteudos/c');
+    }
+
+    public function test_resolver_invalid_root_is_ignored(): void
+    {
+        // 'fora' está fora do configRoot => ignorado; fica só a raiz válida.
+        config(['file-manager.root_resolver' => fn () => ['conteudos/a', 'fora/x']]);
+        $s = $this->service();
+
+        $this->assertSame(['conteudos/a'], $s->roots());
     }
 
     public function test_trash_is_scoped_by_origin(): void

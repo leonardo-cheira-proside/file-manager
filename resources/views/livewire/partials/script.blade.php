@@ -1,59 +1,4 @@
 @assets
-{{-- Estilos do componente injetados via @assets: carregam sempre que o
-     componente é renderizado (página inteira, embebido ou picker), sem
-     depender de `vendor:publish`. --}}
-<style>
-    [x-cloak] { display: none !important; }
-
-    .fm-root { font-family: ui-sans-serif, system-ui, sans-serif; }
-
-    /* Scrollbar discreta nas áreas roláveis */
-    .fm-scroll { scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
-    .fm-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
-    .fm-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
-    .fm-scroll::-webkit-scrollbar-track { background: transparent; }
-
-    /* Evita seleção de texto durante drag */
-    .fm-root [draggable="true"] { -webkit-user-drag: element; }
-
-    /* Checkbox de seleção usa a cor da marca (independente do plugin forms) */
-    .fm-check { accent-color: currentColor; }
-
-    /* Tooltip ao passar o rato — mostra o aria-label (que os leitores de ecrã
-       também anunciam). Aplicado só aos botões com a classe .fm-tip. */
-    .fm-tip { position: relative; }
-    .fm-tip::after {
-        content: attr(aria-label);
-        position: absolute;
-        top: calc(100% + 6px);
-        left: 50%;
-        transform: translateX(-50%);
-        background: #1f2937;
-        color: #fff;
-        font-size: 11px;
-        line-height: 1.1;
-        white-space: nowrap;
-        padding: 5px 8px;
-        border-radius: 6px;
-        opacity: 0;
-        visibility: hidden;
-        pointer-events: none;
-        transition: opacity .12s ease;
-        z-index: 50;
-    }
-    .fm-tip:hover::after,
-    .fm-tip:focus-visible::after { opacity: 1; visibility: visible; }
-    /* Variante: tooltip alinhado pela direita (termina por baixo do botão),
-       para botões junto ao limite direito do ecrã não saírem da tela. */
-    .fm-tip-end::after { left: auto; right: 0; transform: none; }
-    /* Variante: tooltip à esquerda do botão (ex.: FAB encostado à direita). */
-    .fm-tip-left::after {
-        top: 50%;
-        left: auto;
-        right: calc(100% + 8px);
-        transform: translateY(-50%);
-    }
-</style>
 <script>
     // Remove a extensão do nome (para pré-preencher o campo de renomear).
     window.fmStripExt = function (file) {
@@ -91,6 +36,8 @@
             init() {
                 // Abertura de modal a partir do FAB / outros emissores.
                 this.$root.addEventListener('fm-modal', (e) => this.openModal(e.detail));
+                // Ao mudar de pasta, desseleciona tudo e fecha o menu.
+                this.$wire.on('fm-navigated', () => { this.selected = []; this.menu.open = false; });
             },
 
             // ---------- Seleção (cliente) ----------

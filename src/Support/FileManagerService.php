@@ -21,10 +21,15 @@ class FileManagerService
     /** Raiz definida na config (ex.: "conteudos"). */
     protected string $configRoot;
 
-    /** Raiz efetiva do utilizador atual (igual à config = acesso total). */
-    protected string $effectiveRoot;
+    /**
+     * Raízes efetivas do utilizador (uma ou várias). Igual a [configRoot]
+     * significa acesso total. A primeira é a raiz principal (vista inicial).
+     *
+     * @var array<int,string>
+     */
+    protected array $effectiveRoots;
 
-    /** True se o utilizador está confinado a uma sub-raiz. */
+    /** True se o utilizador está confinado a sub-raízes (não acesso total). */
     protected bool $scoped;
 
     public function __construct(?string $disk = null)
@@ -32,11 +37,13 @@ class FileManagerService
         $config = config('file-manager');
         $this->disk = Storage::disk($disk ?? $config['disk']);
         $this->configRoot = $config['root'];
-        $this->effectiveRoot = $this->resolveEffectiveRoot($config);
-        $this->scoped = $this->effectiveRoot !== $this->configRoot;
-        $this->guard = new PathGuard($this->effectiveRoot, $config['trash']);
+        $this->effectiveRoots = $this->resolveEffectiveRoots($config);
+        $this->scoped = $this->effectiveRoots !== [$this->configRoot];
 
-        $this->ensureExists($this->effectiveRoot);
+        foreach ($this->effectiveRoots as $root) {
+            $this->ensureExists($root);
+        }
+        $this->guard = new PathGuard($this->effectiveRoots, $config['trash']);
         $this->ensureExists($config['trash']);
     }
 
@@ -45,10 +52,20 @@ class FileManagerService
         return $this->guard;
     }
 
-    /** Raiz efetiva do utilizador (pode ser uma sub-pasta de configRoot). */
+    /** Raiz principal do utilizador (a primeira; vista inicial). */
     public function root(): string
     {
-        return $this->effectiveRoot;
+        return $this->effectiveRoots[0];
+    }
+
+    /**
+     * Todas as raízes efetivas do utilizador.
+     *
+     * @return array<int,string>
+     */
+    public function roots(): array
+    {
+        return $this->effectiveRoots;
     }
 
     public function isScoped(): bool
@@ -57,14 +74,19 @@ class FileManagerService
     }
 
     /**
-     * Resolve a raiz efetiva via o resolver configurado (class-string invocável
-     * ou callable). Devolve sempre um caminho válido confinado ao configRoot.
+     * Resolve as raízes efetivas via o resolver configurado (class-string
+     * invocável ou callable). O resolver pode devolver um caminho único
+     * (string) ou vários (array). Cada caminho é confinado ao configRoot;
+     * caminhos fora dele são ignorados (não escalam privilégios). Se o
+     * resolver indicar a própria raiz da config (ou vazio), há acesso total.
+     *
+     * @return array<int,string>
      */
-    protected function resolveEffectiveRoot(array $config): string
+    protected function resolveEffectiveRoots(array $config): array
     {
         $resolver = $config['root_resolver'] ?? null;
-        if (! $resolver) {
-            return $config['root'];
+        if (!$resolver) {
+            return [$config['root']];
         }
 
         try {
@@ -77,17 +99,28 @@ class FileManagerService
         }
 
         if ($value === null) {
-            return $config['root'];
+            return [$config['root']];
         }
 
-        $value = trim(str_replace('\\', '/', (string) $value), '/');
+        $candidates = is_array($value) ? $value : [$value];
+        $roots = [];
+        foreach ($candidates as $candidate) {
+            $candidate = trim(str_replace('\\', '/', (string) $candidate), '/');
 
-        // Vazio, igual à raiz da config, ou fora dela => acesso total.
-        if ($value === '' || $value === $config['root'] || ! str_starts_with($value, $config['root'].'/')) {
-            return $config['root'];
+            // Vazio ou a própria raiz da config => acesso total (sem scoping).
+            if ($candidate === '' || $candidate === $config['root']) {
+                return [$config['root']];
+            }
+            // Fora da raiz da config => ignora (não escala privilégios).
+            if (!str_starts_with($candidate, $config['root'] . '/')) {
+                continue;
+            }
+            $roots[] = $candidate;
         }
 
-        return $value;
+        $roots = array_values(array_unique($roots));
+
+        return empty($roots) ? [$config['root']] : $roots;
     }
 
     public function disk(): Filesystem
@@ -102,7 +135,7 @@ class FileManagerService
     /**
      * Lista o conteúdo de uma pasta, aplicando filtro e ordenação.
      *
-     * @param  string  $filter  all|folders|images|videos|az|za
+     * @param  string  $filter  all|folders|images|videos|no-folder|az|za
      * @return array<int,array<string,mixed>>
      */
     public function listing(string $path, string $filter = 'all'): array
@@ -110,31 +143,41 @@ class FileManagerService
         $path = $this->guard->normalize($path);
 
         $folders = collect($this->disk->directories($path))
-            ->map(fn ($dir) => $this->folderEntry($dir))
+            ->map(fn($dir) => $this->folderEntry($dir))
             ->values();
 
         $files = collect($this->disk->files($path))
-            ->reject(fn ($file) => Str::endsWith($file, '.meta.json'))
-            ->map(fn ($file) => $this->fileEntry($file))
+            ->reject(fn($file) => Str::endsWith($file, '.meta.json'))
+            ->map(fn($file) => $this->fileEntry($file))
             ->values();
 
-        // Melhoria face ao FM antigo: ao filtrar por imagens/vídeos mantém-se
-        // as pastas visíveis para que a navegação continue possível.
+        // images/videos/no-folder escondem as pastas na grelha/lista; a
+        // navegação continua possível pela árvore lateral (sidebar).
         $result = match ($filter) {
             'folders' => $folders,
-            'images' => $folders->concat($files->where('type', 'image')->values()),
-            'videos' => $folders->concat($files->where('type', 'video')->values()),
+            'images' => $files
+                ->where('type', 'image')
+                ->values(),
+            'videos' => $files
+                ->where('type', 'video')
+                ->values(),
+            'no-folder' => $files,
             default => $folders->concat($files),
         };
 
         // Scoping: no lixo, um utilizador confinado só vê o que apagou de
-        // dentro da sua própria raiz (via originalPath na meta).
+        // dentro de alguma das suas raízes (via originalPath na meta).
         if ($this->scoped && $this->guard->isTrash($path)) {
             $result = $result->filter(function ($entry) {
                 $origin = $this->readMeta($entry['path'])['originalPath'] ?? '';
 
-                return $origin === $this->effectiveRoot
-                    || str_starts_with($origin, $this->effectiveRoot.'/');
+                foreach ($this->effectiveRoots as $root) {
+                    if ($origin === $root || str_starts_with($origin, $root . '/')) {
+                        return true;
+                    }
+                }
+
+                return false;
             })->values();
         }
 
@@ -186,7 +229,7 @@ class FileManagerService
         $parent = $this->guard->normalize($parent);
         $name = $this->guard->sanitizeName($name);
 
-        $target = $this->uniqueDir($parent.'/'.$name);
+        $target = $this->uniqueDir($parent . '/' . $name);
         $this->disk->makeDirectory($target);
 
         return $target;
@@ -201,14 +244,14 @@ class FileManagerService
         $isDir = $this->isDirectory($path);
 
         // Preserva a extensão original em ficheiros, tal como o FM antigo.
-        if (! $isDir) {
+        if (!$isDir) {
             $ext = pathinfo($path, PATHINFO_EXTENSION);
-            if ($ext !== '' && ! Str::endsWith(Str::lower($newName), '.'.Str::lower($ext))) {
-                $newName .= '.'.$ext;
+            if ($ext !== '' && !Str::endsWith(Str::lower($newName), '.' . Str::lower($ext))) {
+                $newName .= '.' . $ext;
             }
         }
 
-        $target = $dir === '' ? $newName : $dir.'/'.$newName;
+        $target = $dir === '' ? $newName : $dir . '/' . $newName;
 
         if ($target === $path) {
             return $path;
@@ -240,13 +283,13 @@ class FileManagerService
             }
 
             // Não mover para dentro de si próprio nem para a pasta atual.
-            if ($item === $to || Str::startsWith($to, $item.'/') || $this->dirname($item) === $to) {
+            if ($item === $to || Str::startsWith($to, $item . '/') || $this->dirname($item) === $to) {
                 $results[] = ['from' => $item, 'success' => false, 'message' => 'Destino inválido'];
 
                 continue;
             }
 
-            $target = $this->uniquePath($to.'/'.basename($item));
+            $target = $this->uniquePath($to . '/' . basename($item));
             $this->disk->move($item, $target);
             $results[] = ['from' => $item, 'success' => true, 'to' => $target];
         }
@@ -263,7 +306,7 @@ class FileManagerService
         $path = $this->guard->normalize($path);
         $name = $this->guard->sanitizeName($file->getClientOriginalName());
 
-        $target = $this->uniquePath($path.'/'.$name);
+        $target = $this->uniquePath($path . '/' . $name);
         $this->disk->putFileAs($path, $file, basename($target));
 
         return $target;
@@ -281,14 +324,14 @@ class FileManagerService
 
         foreach ($paths as $path) {
             $path = $this->guard->normalize($path);
-            if ($this->guard->isTrash($path) || ! $this->exists($path)) {
+            if ($this->guard->isTrash($path) || !$this->exists($path)) {
                 continue;
             }
 
-            $target = $this->uniquePath($this->guard->trash().'/'.basename($path));
+            $target = $this->uniquePath($this->guard->trash() . '/' . basename($path));
             $this->disk->move($path, $target);
 
-            $this->disk->put($target.'.meta.json', json_encode([
+            $this->disk->put($target . '.meta.json', json_encode([
                 'deleteAt' => $expireAt * 1000, // ms (compat com o FM antigo)
                 'originalPath' => $path,
             ], JSON_PRETTY_PRINT));
@@ -305,17 +348,17 @@ class FileManagerService
     {
         foreach ($paths as $path) {
             $path = $this->guard->normalize($path);
-            if (! $this->guard->isTrash($path) || ! $this->exists($path)) {
+            if (!$this->guard->isTrash($path) || !$this->exists($path)) {
                 continue;
             }
 
             $meta = $this->readMeta($path);
-            $original = $meta['originalPath'] ?? ($this->guard->root().'/'.basename($path));
-            $original = $this->guard->normalize($this->dirname($original)).'/'.basename($original);
+            $original = $meta['originalPath'] ?? ($this->guard->root() . '/' . basename($path));
+            $original = $this->guard->normalize($this->dirname($original)) . '/' . basename($original);
 
             $this->ensureExists($this->dirname($original));
             $this->disk->move($path, $this->uniquePath($original));
-            $this->disk->delete($path.'.meta.json');
+            $this->disk->delete($path . '.meta.json');
         }
     }
 
@@ -328,11 +371,11 @@ class FileManagerService
     {
         foreach ($paths as $path) {
             $path = $this->guard->normalize($path);
-            if (! $this->guard->isTrash($path)) {
+            if (!$this->guard->isTrash($path)) {
                 continue;
             }
             $this->destroy($path);
-            $this->disk->delete($path.'.meta.json');
+            $this->disk->delete($path . '.meta.json');
         }
     }
 
@@ -344,7 +387,7 @@ class FileManagerService
         $now = now()->timestamp * 1000;
 
         foreach ($this->disk->files($trash) as $file) {
-            if (! Str::endsWith($file, '.meta.json')) {
+            if (!Str::endsWith($file, '.meta.json')) {
                 continue;
             }
 
@@ -375,7 +418,7 @@ class FileManagerService
 
         try {
             $url = $this->disk->url($path);
-            if ($mode === 'storage' || ! empty($url)) {
+            if ($mode === 'storage' || !empty($url)) {
                 return $url;
             }
         } catch (\Throwable $e) {
@@ -463,8 +506,8 @@ class FileManagerService
 
     protected function readMeta(string $path): array
     {
-        $metaPath = $path.'.meta.json';
-        if (! $this->disk->exists($metaPath)) {
+        $metaPath = $path . '.meta.json';
+        if (!$this->disk->exists($metaPath)) {
             return [];
         }
 
@@ -496,7 +539,7 @@ class FileManagerService
     protected function isDirectory(string $path): bool
     {
         // Num disco abstrato, "é pasta" = não é ficheiro mas existe como prefixo.
-        return ! $this->disk->fileExists($path)
+        return !$this->disk->fileExists($path)
             && (count($this->disk->files($path)) > 0
                 || count($this->disk->directories($path)) > 0
                 || $this->disk->directoryExists($path));
@@ -513,18 +556,18 @@ class FileManagerService
 
     protected function uniquePath(string $path): string
     {
-        if (! $this->exists($path)) {
+        if (!$this->exists($path)) {
             return $path;
         }
 
         $dir = $this->dirname($path);
         $ext = pathinfo($path, PATHINFO_EXTENSION);
         $base = pathinfo($path, PATHINFO_FILENAME);
-        $suffix = $ext !== '' ? '.'.$ext : '';
+        $suffix = $ext !== '' ? '.' . $ext : '';
 
         $counter = 1;
         do {
-            $candidate = ($dir === '' ? '' : $dir.'/')."{$base} ({$counter}){$suffix}";
+            $candidate = ($dir === '' ? '' : $dir . '/') . "{$base} ({$counter}){$suffix}";
             $counter++;
         } while ($this->exists($candidate));
 
@@ -533,7 +576,7 @@ class FileManagerService
 
     protected function uniqueDir(string $path): string
     {
-        if (! $this->exists($path)) {
+        if (!$this->exists($path)) {
             return $path;
         }
 
@@ -555,7 +598,7 @@ class FileManagerService
 
     protected function ensureExists(string $path): void
     {
-        if (! $this->disk->directoryExists($path)) {
+        if (!$this->disk->directoryExists($path)) {
             $this->disk->makeDirectory($path);
         }
     }
@@ -569,6 +612,6 @@ class FileManagerService
         $i = (int) floor(log($bytes, 1024));
         $i = min($i, count($units) - 1);
 
-        return round($bytes / (1024 ** $i), 2).' '.$units[$i];
+        return round($bytes / (1024 ** $i), 2) . ' ' . $units[$i];
     }
 }

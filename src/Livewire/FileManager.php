@@ -100,17 +100,50 @@ class FileManager extends Component
         return $this->service()->tree(null, $this->openFolders);
     }
 
+    /**
+     * Raízes efetivas com a respetiva árvore (lazy via openFolders). Com acesso
+     * total é só uma (a raiz da config); confinado pode haver várias.
+     *
+     * @return array<int,array<string,mixed>>
+     */
+    #[Computed]
+    public function roots(): array
+    {
+        $service = $this->service();
+
+        return array_map(fn ($root) => [
+            'path' => $root,
+            'label' => basename($root),
+            'tree' => $service->tree($root, $this->openFolders),
+        ], $service->roots());
+    }
+
     #[Computed]
     public function breadcrumbs(): array
     {
-        // Breadcrumbs a partir da raiz efetiva (não expõe segmentos acima dela).
-        $rootDepth = count(explode('/', $this->service()->root()));
+        // Base = a raiz (ou lixo) mais específica que contém o caminho atual,
+        // para não expor segmentos acima dela (válido com várias raízes).
+        $service = $this->service();
+        $roots = $service->roots();
+        $trash = $service->guard()->trash();
+
+        $base = $roots[0];
+        $bestLen = -1;
+        foreach ([...$roots, $trash] as $candidate) {
+            if (($this->path === $candidate || str_starts_with($this->path, $candidate.'/'))
+                && strlen($candidate) > $bestLen) {
+                $base = $candidate;
+                $bestLen = strlen($candidate);
+            }
+        }
+
+        $baseDepth = count(explode('/', $base));
         $segments = explode('/', $this->path);
         $crumbs = [];
         $acc = [];
         foreach ($segments as $i => $segment) {
             $acc[] = $segment;
-            if ($i < $rootDepth - 1) {
+            if ($i < $baseDepth - 1) {
                 continue;
             }
             $crumbs[] = ['label' => $segment, 'path' => implode('/', $acc)];
@@ -147,6 +180,9 @@ class FileManager extends Component
     {
         $this->path = $this->service()->guard()->normalize($path);
         $this->selected = [];
+
+        // Limpa a seleção no cliente (Alpine) ao mudar de pasta.
+        $this->dispatch('fm-navigated');
     }
 
     public function toggleFolder(string $path): void
@@ -310,21 +346,23 @@ class FileManager extends Component
 
     protected function refreshData(): void
     {
-        unset($this->files, $this->tree, $this->breadcrumbs, $this->inTrash);
+        unset($this->files, $this->tree, $this->roots, $this->breadcrumbs, $this->inTrash);
     }
 
     protected function parentPath(string $path): string
     {
-        $root = $this->service()->root();
+        $roots = $this->service()->roots();
         $parent = str_replace('\\', '/', dirname($path));
         $parent = $parent === '.' ? '' : $parent;
 
-        // Nunca subir acima da raiz efetiva.
-        if ($parent === '' || ! ($parent === $root || str_starts_with($parent, $root.'/'))) {
-            return $root;
+        // Nunca subir acima de uma raiz efetiva.
+        foreach ($roots as $root) {
+            if ($parent === $root || str_starts_with($parent, $root.'/')) {
+                return $parent;
+            }
         }
 
-        return $parent;
+        return $roots[0];
     }
 
     public function render()

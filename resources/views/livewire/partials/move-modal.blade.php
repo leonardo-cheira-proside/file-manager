@@ -20,22 +20,26 @@
         </p>
 
         <div class="flex-1 overflow-y-auto border border-gray-200 rounded-lg p-2 fm-scroll min-h-[12rem]">
-            {{-- Raiz efetiva --}}
-            <button type="button" @click="moveModal.target = @js($this->rootPath)"
-                class="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm"
-                :class="moveModal.target === @js($this->rootPath) ? 'bg-proximo-100 text-proximo-800 font-semibold' : 'hover:bg-gray-100 text-gray-700'">
-                <svg class="h-4 w-4 shrink-0 text-proximo-600" fill="currentColor" viewBox="0 0 20 20">
-                    <path
-                        d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
-                </svg>
-                <span class="truncate">{{ $this->rootLabel }}</span>
-            </button>
+            {{-- Raízes efetivas (destinos de topo) --}}
+            @foreach ($this->roots as $root)
+                <div wire:key="move-root-{{ $root['path'] }}">
+                    <button type="button" @click="moveModal.target = @js($root['path'])"
+                        class="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm"
+                        :class="moveModal.target === @js($root['path']) ? 'bg-proximo-100 text-proximo-800 font-semibold' : 'hover:bg-gray-100 text-gray-700'">
+                        <svg class="h-4 w-4 shrink-0 text-proximo-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path
+                                d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
+                        </svg>
+                        <span class="truncate">{{ $root['label'] }}</span>
+                    </button>
 
-            <ul class="ml-1">
-                @foreach ($this->tree as $node)
-                    @include('file-manager::livewire.partials.move-tree-node', ['node' => $node])
-                @endforeach
-            </ul>
+                    <ul class="ml-1 mb-1">
+                        @foreach ($root['tree'] as $node)
+                            @include('file-manager::livewire.partials.move-tree-node', ['node' => $node])
+                        @endforeach
+                    </ul>
+                </div>
+            @endforeach
         </div>
 
         <div class="flex justify-end gap-2 mt-4">

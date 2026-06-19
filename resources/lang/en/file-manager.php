@@ -10,6 +10,7 @@ return [
     'view_mode' => 'View mode',
     'all' => 'All',
     'folders' => 'Folders',
+    'no-folder' => 'Hide folders',
     'images' => 'Images',
     'videos' => 'Videos',
     'grid' => 'Grid',
@@ -21,7 +22,9 @@ return [
     'time_left' => 'Time left',
     'folder' => 'Folder',
     'empty' => 'This folder is empty',
+    'trash_empty' => 'The trash is empty',
     'no_results' => 'No results for your search',
+    'no_filter_results' => 'Nothing to show with this filter',
     'items_selected' => 'items selected',
     'select_all' => 'Select all',
     'clear_selection' => 'Clear selection',
@@ -60,4 +63,6 @@ return [
     'type_image' => 'Image',
     'type_video' => 'Video',
     'type_file' => 'File',
+    'no-folder' => 'No folders'
+
 ];

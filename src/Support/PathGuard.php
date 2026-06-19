@@ -10,10 +10,22 @@ use InvalidArgumentException;
  */
 class PathGuard
 {
+    /** @var array<int,string> Raízes permitidas (a primeira é a principal). */
+    protected array $roots;
+
+    /**
+     * @param  array<int,string>|string  $roots  Uma ou várias raízes permitidas.
+     */
     public function __construct(
-        protected string $root,
+        array|string $roots,
         protected string $trash,
     ) {
+        $roots = array_values(array_unique(array_filter(
+            array_map(fn ($r) => trim(str_replace('\\', '/', (string) $r), '/'), (array) $roots),
+            fn ($r) => $r !== '',
+        )));
+
+        $this->roots = $roots ?: [''];
     }
 
     /**
@@ -27,7 +39,7 @@ class PathGuard
         $path = trim($path, '/');
 
         if ($path === '') {
-            return $this->root;
+            return $this->roots[0];
         }
 
         $segments = [];
@@ -50,13 +62,20 @@ class PathGuard
         return $normalized;
     }
 
-    /** Verifica se o caminho está dentro da raiz ou do lixo. */
+    /** Verifica se o caminho está dentro de alguma raiz permitida ou do lixo. */
     public function withinRoots(string $path): bool
     {
-        return $path === $this->root
-            || $path === $this->trash
-            || str_starts_with($path, $this->root.'/')
-            || str_starts_with($path, $this->trash.'/');
+        if ($this->isTrash($path)) {
+            return true;
+        }
+
+        foreach ($this->roots as $root) {
+            if ($path === $root || str_starts_with($path, $root.'/')) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function isTrash(string $path): bool
@@ -73,9 +92,16 @@ class PathGuard
         return trim($name) ?: 'sem_nome';
     }
 
+    /** Raiz principal (a primeira). */
     public function root(): string
     {
-        return $this->root;
+        return $this->roots[0];
+    }
+
+    /** @return array<int,string> Todas as raízes permitidas. */
+    public function roots(): array
+    {
+        return $this->roots;
     }
 
     public function trash(): string

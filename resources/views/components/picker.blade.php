@@ -9,7 +9,27 @@
 @php
     $isArrayInput = str_ends_with($inputName, '[]');
     $allowMultiple = $multiple || $isArrayInput;
-    $initial = is_array($value) ? array_values(array_filter($value)) : ($value !== '' && $value !== null ? [$value] : []);
+    $rawInitial = is_array($value) ? array_values(array_filter($value)) : ($value !== '' && $value !== null ? [$value] : []);
+
+    // Só pré-seleciona valores que realmente existem no disco. Assim, abrir o
+    // picker com um valor inexistente não seleciona nada (nem mostra tile
+    // partido, nem o submete no formulário). URLs/caminhos externos passam.
+    $fmDisk = \Illuminate\Support\Facades\Storage::disk(config('file-manager.disk'));
+    $initial = array_values(array_filter($rawInitial, function ($p) use ($fmDisk) {
+        $p = (string) $p;
+        if ($p === '') {
+            return false;
+        }
+        if (\Illuminate\Support\Str::startsWith($p, ['http://', 'https://', '//'])) {
+            return true; // URL externa: não dá para verificar aqui.
+        }
+        try {
+            return $fmDisk->exists($p);
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }));
+
     $pickerId = 'fmp_'.md5($inputName.uniqid('', true));
     $mediaBase = route('file-manager.media');
 @endphp
@@ -36,7 +56,10 @@
             this.selected = Array.isArray(p) ? p : (p ? [p] : []);
             this.open = false;
         },
-        markBroken(path) { this.broken = { ...this.broken, [path]: true }; },
+        markBroken(path) {
+            if (this.broken[path]) return; // já marcado: evita re-disparar reatividade (loop)
+            this.broken = { ...this.broken, [path]: true };
+        },
         isBroken(path) { return !!this.broken[path]; },
         preview(path) {
             if (!path) return '';
@@ -86,10 +109,9 @@
     @endif
 
     {{-- Modal com o File Manager nativo (sem iframe / sem JWT) --}}
-    <div x-show="open" x-cloak class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
+    <div x-show="open" x-cloak class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999]">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[80vh] flex flex-col overflow-hidden">
-            <div class="flex justify-between items-center p-4 border-b">
-                <h2 class="text-lg font-bold text-gray-800">@lang('file-manager::file-manager.library')</h2>
+            <div class="flex justify-between items-center border-b">
                 <button type="button" @click="open = false" class="text-gray-400 hover:text-gray-600 text-3xl leading-none">&times;</button>
             </div>
             <div class="flex-1 overflow-hidden">

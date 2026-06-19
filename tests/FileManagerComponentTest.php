@@ -39,6 +39,16 @@ class FileManagerComponentTest extends TestCase
             ->assertSee('Sub');
     }
 
+    public function test_renders_multiple_roots_in_sidebar(): void
+    {
+        config(['file-manager.root_resolver' => fn () => ['conteudos/alpha', 'conteudos/beta']]);
+
+        Livewire::test(FileManager::class)
+            ->assertSet('path', 'conteudos/alpha') // abre na primeira raiz
+            ->assertSee('alpha')
+            ->assertSee('beta');
+    }
+
     public function test_picker_dispatches_selection(): void
     {
         Storage::disk('fm-test')->put('conteudos/a.png', 'x');

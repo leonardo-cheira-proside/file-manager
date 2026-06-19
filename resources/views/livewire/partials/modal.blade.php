@@ -48,7 +48,7 @@
         <template x-if="modal.action === 'add' || modal.action === 'rename'">
             <input type="text" data-fm-modal-input x-model="modal.text" placeholder="@lang('file-manager::file-manager.name_placeholder')"
                 @keydown.enter.prevent="confirmModal()"
-                class="w-full border border-gray-300 rounded-lg px-4 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-proximo-500">
+                class="w-full border border-gray-300 rounded-lg px-4 py-2 mb-4 focus:outline-proximo-500 focus:outline-0  focus:ring-2 focus:ring-proximo-500 focus:border-proximo-500">
         </template>
 
         <template x-if="modal.action === 'delete'">
@@ -96,9 +96,41 @@
                         <dt class="text-gray-400 shrink-0">@lang('file-manager::file-manager.modified')</dt>
                         <dd class="text-gray-700 text-right tabular-nums" x-text="modal.file?.modified || '—'"></dd>
                     </div>
-                    <div class="py-1.5">
-                        <dt class="text-gray-400">@lang('file-manager::file-manager.path')</dt>
-                        <dd class="text-gray-600 break-all text-xs mt-0.5" x-text="modal.file?.path"></dd>
+                    <div x-data="{ copied: false }" class=" py-1.5 flex justify-between gap-4">
+                        <dt class="text-gray-400 flex items-center">@lang('file-manager::file-manager.path')</dt>
+                    
+                        <div class="flex items-center">
+                            <dd class="text-gray-600 break-all text-xs" x-text="modal.file?.path"></dd>
+                    
+                            <button
+                                type="button"
+                                class="p-1 text-gray-500 hover:text-gray-700"
+                                @click="
+                                    navigator.clipboard.writeText(modal.file?.path || '');
+                                    copied = true;
+                                    setTimeout(() => copied = false, 1500);
+                                "
+                            >
+                                <!-- Not copied -->
+                                <svg
+                                    x-show="!copied"
+                                    class="w-4 h-4"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                >
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 12.9v4.2c0 3.5-1.4 4.9-4.9 4.9H6.9C3.4 22 2 20.6 2 17.1v-4.2C2 9.4 3.4 8 6.9 8h4.2c3.5 0 4.9 1.4 4.9 4.9z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M22 6.9v4.2c0 3.5-1.4 4.9-4.9 4.9H16v-3.1C16 9.4 14.6 8 11.1 8H8V6.9C8 3.4 9.4 2 12.9 2h4.2C20.6 2 22 3.4 22 6.9z"></path>
+                                </svg>
+                    
+                                <!-- Copied -->
+                                
+                                <svg x-show="copied" class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 15 15" fill="currentColor"><path fill-rule="evenodd" clip-rule="evenodd" d="M14.707 3L5.5 12.207.293 7 1 6.293l4.5 4.5 8.5-8.5.707.707z" fill="currentColor"></path></svg>
+
+                            </button>
+                        </div>
+
                     </div>
                 </dl>
             </div>

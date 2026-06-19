@@ -10,6 +10,7 @@ return [
     'view_mode' => 'Modo de exibição',
     'all' => 'Tudo',
     'folders' => 'Pastas',
+    'no-folder' => 'Ocultar pastas',
     'images' => 'Imagens',
     'videos' => 'Vídeos',
     'grid' => 'Em grelha',
@@ -21,7 +22,9 @@ return [
     'time_left' => 'Tempo restante',
     'folder' => 'Pasta',
     'empty' => 'Esta pasta está vazia',
+    'trash_empty' => 'O lixo está vazio',
     'no_results' => 'Sem resultados para a pesquisa',
+    'no_filter_results' => 'Nada para mostrar com este filtro',
     'items_selected' => 'itens selecionados',
     'select_all' => 'Selecionar todos',
     'clear_selection' => 'Limpar seleção',
@@ -60,4 +63,5 @@ return [
     'type_image' => 'Imagem',
     'type_video' => 'Vídeo',
     'type_file' => 'Ficheiro',
+    'no-folder' => 'Sem pastas'
 ];
