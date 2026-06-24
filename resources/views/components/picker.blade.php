@@ -70,6 +70,7 @@
         isVideo(p) { return /\.(mp4|webm|ogg|mov|m4v|avi)$/i.test(p || ''); },
      }"
      @file-manager-selected.window="applySelection($event.detail)"
+     @reset-file-picker.window="if (!$event.detail?.inputName || $event.detail.inputName === @js($inputName)) { selected = []; open = false; broken = {}; }"
      @keydown.escape.window="open = false"
      {{ $attributes->merge(['class' => 'w-full']) }}>
 
