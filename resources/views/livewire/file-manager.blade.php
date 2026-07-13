@@ -210,7 +210,7 @@
                 <div class="flex">
                     <input type="text" wire:model.live.debounce.300ms="search"
                         placeholder="@lang('file-manager::file-manager.search')"
-                        class="bg-white border min-w-[140px] h-8 px-2 text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-proximo-500">
+                        class="bg-white border border-gray-200 min-w-[140px] h-8 px-2 text-sm text-gray-700 outline-none focus:outline-none focus:ring-0 focus:border-gray-200">
                     <div class="bg-gray-100 flex items-center justify-center w-8 h-8 shrink-0 border">
                         <x-heroicon-s-magnifying-glass class="h-4 w-4 text-gray-500" />
                     </div>
