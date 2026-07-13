@@ -2,7 +2,7 @@
     "name": "proside/file-manager",
     "description": "File Manager reutilizável para Laravel, construído em Livewire v4 (substitui o File Manager Next.js da Proside).",
     "type": "library",
-    "version": "1.1.1",
+    "version": "1.1.2",
     "license": "MIT",
     "keywords": ["laravel", "livewire", "file-manager", "media", "proside"],
     "authors": [
