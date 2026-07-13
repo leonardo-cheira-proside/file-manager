@@ -173,7 +173,7 @@
                     </button>
                 </div>
 
-                <div class="flex h-8 text-gray-600 items-center w-full min-w-0">
+                <div class="flex h-8 text-gray-600 items-center w-full min-w-0 ">
                     <button type="button" wire:click="open(@js($this->rootPath))"
                         class="bg-gray-50 shadow-[inset_1px_-39px_70px_-49px_rgba(0,0,0,0.11)] flex items-center justify-center w-8 h-8 shrink-0 border hover:bg-gray-100">
                         <x-heroicon-s-home-modern class="h-4 w-4 text-proximo-800" />
@@ -222,7 +222,7 @@
                 $tbBtn = 'flex border w-fit h-8 items-center justify-center px-2 gap-1 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none whitespace-nowrap';
                 $menuItem = 'w-full text-left px-4 py-2 hover:bg-proximo-50 flex items-center gap-2 text-sm';
             @endphp
-            <div class="bg-white p-2 shadow-md flex justify-between shrink-0">
+            <div class="bg-white p-2 shadow-md flex justify-between shrink-0 border-y border-gray-200">
                 <div class="flex items-center">
                     @unless ($this->inTrash)
                         <button type="button"
