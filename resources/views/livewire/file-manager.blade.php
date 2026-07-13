@@ -1,5 +1,5 @@
 <div class="fm-root relative flex flex-col h-full w-full bg-gray-50 text-gray-800 select-none" x-data="fileManager({ picker: @js($pickerMode), multiple: @js($multiple), view: @js($viewMode) })"
-    @keydown.escape.window="closeAll()">
+    @keydown.escape.window="closeAll()" @keydown.window="onShortcut($event)">
     {{-- Estilos do componente inline: garantem que carregam em QUALQUER contexto
          (página inteira, embebido ou dentro do modal do picker), sem depender de
          `@assets` nem de `vendor:publish`. Sobretudo o [x-cloak], que esconde os
@@ -42,288 +42,297 @@
         .fm-check {
             accent-color: currentColor;
         }
-
-        /* Tooltip ao passar o rato — mostra o aria-label (que os leitores de ecrã
-           também anunciam). Aplicado só aos botões com a classe .fm-tip. */
-        .fm-tip {
-            position: relative;
-        }
-
-        .fm-tip::after {
-            content: attr(aria-label);
-            position: absolute;
-            top: calc(100% + 6px);
-            left: 50%;
-            transform: translateX(-50%);
-            background: #1f2937;
-            color: #fff;
-            font-size: 11px;
-            line-height: 1.1;
-            white-space: nowrap;
-            padding: 5px 8px;
-            border-radius: 6px;
-            opacity: 0;
-            visibility: hidden;
-            pointer-events: none;
-            transition: opacity .12s ease;
-            z-index: 50;
-        }
-
-        .fm-tip:hover::after,
-        .fm-tip:focus-visible::after {
-            opacity: 1;
-            visibility: visible;
-        }
-
-        /* Variante: tooltip alinhado pela direita (termina por baixo do botão). */
-        .fm-tip-end::after {
-            left: auto;
-            right: 0;
-            transform: none;
-        }
-
-        /* Variante: tooltip à esquerda do botão (ex.: FAB encostado à direita). */
-        .fm-tip-left::after {
-            top: 50%;
-            left: auto;
-            right: calc(100% + 8px);
-            transform: translateY(-50%);
-        }
     </style>
-    {{-- ===================== Toolbar ===================== --}}
-    <div class="bg-proximo-800 p-2 flex justify-between items-center text-white z-20 shadow-md shrink-0">
 
-        <div class="flex items-center gap-3">
-            <button type="button" class="p-1 hover:bg-proximo-700 rounded transition-colors"
-                wire:click="$toggle('showTree')" title="@lang('file-manager::file-manager.directories')">
-                <x-file-manager::icons.hamburguer-menu />
-            </button>
-        </div>
-        {{-- Pesquisa (filtra a vista atual no cliente) --}}
-        <div class="relative max-w-[40vw]">
-            <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-                <x-file-manager::icons.magnifying-glass />
-            </span>
+    @php
+        $crumbs = $this->breadcrumbs;
+        $parentPath = count($crumbs) > 1 ? $crumbs[count($crumbs) - 2]['path'] : ($crumbs[0]['path'] ?? $this->rootPath);
+    @endphp
 
-            <input type="text" wire:model.live.debounce.300ms="search" placeholder="@lang('file-manager::file-manager.search')"
-                class="block w-full pl-10 py-1.5 rounded-md bg-white text-gray-900 text-sm focus:outline-proximo-500 focus:outline-0  focus:ring-proximo-500 focus:border-proximo-500">
-        </div>
-    </div>
-
-    <div class="flex flex-1 overflow-hidden">
-        {{-- ===================== Sidebar (árvorea) ===================== --}}
-        <div class="transition-all duration-300 ease-in-out border-r border-proximo-800 flex flex-col bg-white overflow-hidden shrink-0"
-            :class="$wire.showTree ? 'w-72' : 'w-0'">
-            <div class="bg-proximo-700 font-semibold text-white px-4 h-9 flex items-center shrink-0">
-                @lang('file-manager::file-manager.directories')
-            </div>
-            <div class="p-2 flex-1 overflow-y-auto fm-scroll">
-                {{-- Raízes efetivas do utilizador (uma com acesso total, várias se confinado) --}}
-                @foreach ($this->roots as $root)
-                    <div wire:key="root-{{ $root['path'] }}">
-                        <div wire:click="open(@js($root['path']))" @dragover.prevent
-                            @drop.prevent="onDropMove($event, @js($root['path']))"
-                            class="flex items-center gap-2 px-2 py-1.5 mb-1 cursor-pointer rounded-md hover:bg-gray-100"
-                            :class="$wire.path === @js($root['path']) ? 'bg-gray-100 text-proximo-700' :
-                                'text-gray-700'">
-                            <svg class="h-4 w-4 shrink-0 text-proximo-600" fill="currentColor" viewBox="0 0 20 20">
-                                <path
-                                    d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
-                            </svg>
-                            <span class="text-sm truncate">{{ $root['label'] }}</span>
-                        </div>
-
-                        <ul class="ml-2 mb-1">
-                            @foreach ($root['tree'] as $node)
-                                @include('file-manager::livewire.partials.tree-node', ['node' => $node])
-                            @endforeach
-                        </ul>
+    <div class="flex flex-1 overflow-hidden h-full"
+        @fm-navigated.window="onNav($event.detail.path)"
+        x-data="{
+            sbW: 320,
+            lastW: 320,
+            dragging: false,
+            hist: [],
+            hi: -1,
+            viaHistory: false,
+            init() {
+                const saved = parseInt(localStorage.getItem('fmSidebarW'));
+                if (!isNaN(saved)) this.sbW = saved;
+                if (this.sbW > 0) this.lastW = this.sbW;
+                this.$watch('sbW', v => localStorage.setItem('fmSidebarW', v));
+                // Semente do histórico com a pasta atual.
+                this.hist = [this.$wire.path];
+                this.hi = 0;
+            },
+            onNav(p) {
+                if (p === undefined || p === null) return;
+                if (this.viaHistory) { this.viaHistory = false; return; }
+                if (this.hist[this.hi] === p) return;
+                this.hist = this.hist.slice(0, this.hi + 1);
+                this.hist.push(p);
+                this.hi = this.hist.length - 1;
+            },
+            canBack() { return this.hi > 0; },
+            canFwd() { return this.hi < this.hist.length - 1; },
+            goBack() { if (this.canBack()) { this.viaHistory = true; this.hi--; this.$wire.open(this.hist[this.hi]); } },
+            goFwd() { if (this.canFwd()) { this.viaHistory = true; this.hi++; this.$wire.open(this.hist[this.hi]); } },
+            copyPath() {
+                const p = this.$wire.path || '';
+                (navigator.clipboard ? navigator.clipboard.writeText(p) : Promise.reject())
+                    .then(() => { this.pathCopied = true; setTimeout(() => this.pathCopied = false, 1200); })
+                    .catch(() => {});
+            },
+            pathCopied: false,
+            toggle() {
+                if (this.sbW > 0) { this.lastW = this.sbW; this.sbW = 0; }
+                else { this.sbW = this.lastW || 320; }
+            },
+            startDrag(e) {
+                this.dragging = true;
+                const startX = e.clientX;
+                const startW = this.sbW;
+                const move = (ev) => {
+                    let w = Math.min(560, Math.max(0, startW + (ev.clientX - startX)));
+                    if (Math.abs(w - 320) <= 18) w = 320; // snap aos 320
+                    this.sbW = w;
+                    if (w > 0) this.lastW = w;
+                };
+                const up = () => {
+                    this.dragging = false;
+                    window.removeEventListener('mousemove', move);
+                    window.removeEventListener('mouseup', up);
+                    document.body.style.userSelect = '';
+                };
+                window.addEventListener('mousemove', move);
+                window.addEventListener('mouseup', up);
+                document.body.style.userSelect = 'none';
+            }
+        }">
+        {{-- ===================== Sidebar (árvore) ===================== --}}
+        <nav :style="`width:${sbW}px`"
+            class="border-gray-200/50 bg-white shrink-0 h-full overflow-y-auto overflow-x-hidden fm-scroll"
+            :class="sbW > 0 ? 'p-3' : 'p-0'">
+            @foreach ($this->roots as $root)
+                <div wire:key="root-{{ $root['path'] }}" class="mb-1">
+                    <div wire:click="open(@js($root['path']))" @dragover.prevent
+                        @drop.prevent="onDropMove($event, @js($root['path']))"
+                        class="flex items-center gap-2 px-2 py-1.5 cursor-pointer rounded-md hover:bg-gray-100 text-sm"
+                        :class="$wire.path === @js($root['path']) ? 'bg-gray-100 text-proximo-700 font-medium' : 'text-gray-700'">
+                        <x-heroicon-s-home-modern class="h-4 w-4 text-proximo-800 shrink-0" />
+                        <span class="truncate">{{ $root['label'] }}</span>
                     </div>
-                @endforeach
-
-                <hr class="border-gray-200 my-2">
-
-                {{-- Lixo "apagados" --}}
-                <div wire:click="open('{{ config('file-manager.trash') }}')"
-                    class="flex items-center gap-2 px-2 py-1.5 cursor-pointer rounded-md hover:bg-gray-100"
-                    :class="$wire.path === '{{ config('file-manager.trash') }}' ? 'bg-gray-100 text-red-700' : 'text-gray-700'">
-                    <svg class="h-4 w-4 shrink-0 text-red-600" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd"
-                            d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
-                            clip-rule="evenodd" />
-                    </svg>
-                    <span class="text-sm truncate">{{ config('file-manager.trash') }}</span>
+                    <ul class="ml-2">
+                        @foreach ($root['tree'] as $node)
+                            @include('file-manager::livewire.partials.tree-node', ['node' => $node])
+                        @endforeach
+                    </ul>
                 </div>
+            @endforeach
+
+            <hr class="border-gray-200 my-2">
+
+            {{-- Lixo --}}
+            <div wire:click="open('{{ config('file-manager.trash') }}')"
+                class="flex items-center gap-2 px-2 py-1.5 cursor-pointer rounded-md hover:bg-gray-100 text-sm"
+                :class="$wire.path === '{{ config('file-manager.trash') }}' ? 'bg-gray-100 text-red-700' : 'text-gray-700'">
+                <x-file-manager::icons.delete class="h-4 w-4 text-red-600 shrink-0" />
+                <span class="truncate">{{ config('file-manager.trash') }}</span>
+            </div>
+        </nav>
+
+        {{-- Handle de redimensionar a sidebar (fica sempre, mesmo com a sidebar a 0) --}}
+        <div @mousedown.prevent="startDrag($event)" @dblclick="toggle()"
+            class="group relative w-1 shrink-0 cursor-col-resize flex items-stretch justify-center">
+            {{-- linha fina --}}
+            <div class="w-px bg-gray-200 group-hover:bg-proximo-400 transition-colors"
+                :class="dragging ? 'bg-proximo-500' : ''"></div>
+            {{-- pega: pontos ao centro (indica que é arrastável) --}}
+            <div class="absolute top-1/2 -translate-y-1/2 flex flex-col items-center gap-[3px] rounded-full border border-gray-200 bg-white px-[3px] py-1.5 text-gray-400 shadow-sm group-hover:border-proximo-300 group-hover:text-proximo-500"
+                :class="dragging ? 'border-proximo-400 text-proximo-600' : ''">
+                <span class="h-[3px] w-[3px] rounded-full bg-current"></span>
+                <span class="h-[3px] w-[3px] rounded-full bg-current"></span>
+                <span class="h-[3px] w-[3px] rounded-full bg-current"></span>
             </div>
         </div>
 
         {{-- ===================== Conteúdo ===================== --}}
-        <div class="flex-1 flex flex-col overflow-hidden">
-            {{-- Barra: breadcrumbs + filtros --}}
-            <div class="flex justify-between items-center bg-proximo-700 text-white h-9 px-4 shrink-0">
-                <nav class="flex items-center gap-1 text-sm overflow-x-auto">
-                    @foreach ($this->breadcrumbs as $i => $crumb)
-                        @if ($i > 0)
-                            <span class="opacity-40">/</span>
-                        @endif
-                        <button type="button" wire:click="open('{{ $crumb['path'] }}')"
-                            class="hover:underline whitespace-nowrap {{ $i === count($this->breadcrumbs) - 1 ? 'font-semibold' : '' }}">
-                            {{ $crumb['label'] }}
-                        </button>
-                    @endforeach
-                </nav>
-                <div class="flex gap-3 items-center ">
-                    @unless ($lockFilter)
-                        <div class="relative" @click.outside="filterOpen = false">
-                            <button type="button" @click="filterOpen = !filterOpen"
-                                class="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-3 py-1 rounded-full text-xs border border-white/20">
-                                <x-file-manager::icons.hopper />
-                                <span>@lang('file-manager::file-manager.filters')</span>
-                            </button>
-                            <div x-show="filterOpen" x-cloak x-transition
-                                class="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50 text-gray-700 text-sm">
-                                <p class="px-4 py-1 text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                                    @lang('file-manager::file-manager.sort_by')</p>
-                                @foreach (['az' => 'A–Z', 'za' => 'Z–A'] as $id => $label)
-                                    <button type="button" wire:click="setFilter('{{ $id }}')"
-                                        @click="filterOpen=false"
-                                        class="w-full text-left px-4 py-2 hover:bg-proximo-50 {{ $filter === $id ? 'bg-gray-100 font-semibold text-proximo-900' : '' }}">{{ $label }}</button>
-                                @endforeach
-                                <div class="h-px bg-gray-100 my-1.5 mx-2"></div>
-                                <p class="px-4 py-1 text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                                    @lang('file-manager::file-manager.filter_content')</p>
-                                @foreach (['all' => __('file-manager::file-manager.all'), 'folders' => __('file-manager::file-manager.folders'), 'images' => __('file-manager::file-manager.images'), 'videos' => __('file-manager::file-manager.videos'), 'no-folder' => __('file-manager::file-manager.no-folder')] as $id => $label)
-                                    <button type="button" wire:click="setFilter('{{ $id }}')"
-                                        @click="filterOpen=false"
-                                        class="w-full text-left px-4 py-2 hover:bg-proximo-50 {{ $filter === $id ? 'bg-gray-100 font-semibold text-proximo-900' : '' }}">{{ $label }}</button>
-                                @endforeach
-                                <div class="h-px bg-gray-100 my-1.5 mx-2"></div>
-                                <p class="px-4 py-1 text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                                    @lang('file-manager::file-manager.view_mode')</p>
-                                @foreach (['grid' => __('file-manager::file-manager.grid'), 'list' => __('file-manager::file-manager.list')] as $id => $label)
-                                    <button type="button" @click="view='{{ $id }}'; filterOpen=false"
-                                        class="w-full text-left px-4 py-2 hover:bg-proximo-50"
-                                        :class="view === '{{ $id }}' ? 'bg-gray-100 font-semibold text-proximo-900' :
-                                            ''">{{ $label }}</button>
-                                @endforeach
-                            </div>
-                        </div>
-                    @endunless
+        <div class="flex-1 flex flex-col h-full min-w-0 overflow-hidden">
+            {{-- Header: navegação + breadcrumb + pesquisa --}}
+            <header class="shadow-[inset_1px_-39px_70px_-49px_rgba(0,0,0,0.15)] py-3 w-full px-3 border-b border-gray-200 gap-4 flex shrink-0">
+                <div class="flex">
+                    <button type="button" @click="goBack()" :disabled="!canBack()"
+                        class="h-8 w-8 bg-gray-50 shadow-[inset_1px_-39px_70px_-49px_rgba(0,0,0,0.11)] items-center justify-center flex border border-gray-200 hover:bg-gray-100 disabled:opacity-40 disabled:pointer-events-none">
+                        <x-heroicon-s-chevron-left class="text-gray-500 h-4 w-4" />
+                    </button>
+                    <button type="button" @click="goFwd()" :disabled="!canFwd()"
+                        class="h-8 w-8 bg-gray-50 shadow-[inset_1px_-39px_70px_-49px_rgba(0,0,0,0.11)] items-center justify-center flex border border-gray-200 hover:bg-gray-100 disabled:opacity-40 disabled:pointer-events-none">
+                        <x-heroicon-s-chevron-right class="text-gray-500 h-4 w-4" />
+                    </button>
                 </div>
 
-            </div>
-
-            {{-- ===================== Barra de ações de seleção ===================== --}}
-            {{-- Altura fixa reservada: a barra ocupa sempre o mesmo espaço, mesmo
-                 sem seleção, para não empurrar os itens para baixo ao ativar. --}}
-            <div class="flex items-center h-12 px-4 border-b shrink-0 transition-colors"
-                :class="selected.length > 0 ? 'bg-proximo-50 border-proximo-200' : 'bg-gray-50 border-gray-100'">
-
-                {{-- Sem seleção: dica discreta (mantém a altura) --}}
-                <template x-if="selected.length === 0">
-
-                </template>
-
-                {{-- Com seleção: contador + ações --}}
-                <template x-if="selected.length > 0">
-                    <div class="flex items-center justify-between gap-3 w-full">
-                        <div class="flex items-center gap-2 text-sm text-proximo-900 shrink-0">
-                            <button type="button" @click="selected = []" aria-label="@lang('file-manager::file-manager.clear_selection')"
-                                class="p-1 rounded-md hover:bg-proximo-100 text-proximo-700">
-                                <x-file-manager::icons.cross />
-
-                            </button>
-                            <span class="font-semibold whitespace-nowrap"><span x-text="selected.length"></span>
-                                @lang('file-manager::file-manager.items_selected')</span>
-                        </div>
-                        <div class="flex items-center gap-1.5">
-                            @if ($this->inTrash)
-                                <button type="button" @click="$wire.restore([...selected]); selected = []"
-                                    aria-label="@lang('file-manager::file-manager.restore')"
-                                    class="fm-tip p-2 rounded-full bg-white border border-proximo-200 text-proximo-700 hover:bg-proximo-100">
-                                    <x-file-manager::icons.restore />
-                                </button>
-                                <button type="button" @click="$wire.deleteForever([...selected]); selected = []"
-                                    aria-label="@lang('file-manager::file-manager.delete_forever')"
-                                    class="fm-tip p-2 rounded-full bg-red-600 text-white hover:bg-red-700">
-                                    <x-file-manager::icons.delete-fill />
-                                </button>
-                            @else
-                                {{-- Escolher (picker) --}}
-                                <button type="button" x-show="picker && allSelectedAreFiles()"
-                                    @click="chooseSelected()" aria-label="@lang('file-manager::file-manager.choose')"
-                                    class="fm-tip p-2 rounded-full bg-proximo-600 text-white hover:bg-proximo-700">
-                                    <x-file-manager::icons.tick />
-                                </button>
-                                {{-- Visualizar (1 imagem/vídeo) --}}
-                                <button type="button"
-                                    x-show="selectedItem() && ['image','video'].includes(selectedItem().type)"
-                                    @click="preview(selectedItem())"
-                                    :aria-label="selectedItem() && selectedItem().type === 'video' ? '@lang('file-manager::file-manager.view_video')' :
-                                        '@lang('file-manager::file-manager.view_image')'"
-                                    class="fm-tip p-2 rounded-full bg-white border border-proximo-200 text-proximo-700 hover:bg-proximo-100">
-                                    <x-file-manager::icons.eye-icon />
-                                </button>
-                                {{-- Criar subpasta (1 pasta) --}}
-                                <button type="button" x-show="selectedItem() && selectedItem().type === 'folder'"
-                                    @click="openModal({ action: 'add', type: 'folder', path: selectedItem().path })"
-                                    aria-label="@lang('file-manager::file-manager.create_subfolder')"
-                                    class="fm-tip p-2 rounded-full bg-white border border-proximo-200 text-proximo-700 hover:bg-proximo-100">
-                                    <x-file-manager::icons.add-folder />
-
-                                </button>
-                                {{-- Renomear (1 item) --}}
-                                <button type="button" x-show="selectedItem()"
-                                    @click="openModal({ action: 'rename', file: selectedItem(), text: fmStripExt(selectedItem()) })"
-                                    aria-label="@lang('file-manager::file-manager.rename')"
-                                    class="fm-tip p-2 rounded-full bg-white border border-proximo-200 text-proximo-700 hover:bg-proximo-100">
-                                    <x-file-manager::icons.rename />
-
-                                </button>
-                                {{-- Mover (qualquer seleção) --}}
-                                <button type="button" @click="openMoveModal()" aria-label="@lang('file-manager::file-manager.move')"
-                                    class="fm-tip p-2 rounded-full bg-white border border-proximo-200 text-proximo-700 hover:bg-proximo-100">
-                                    <x-file-manager::icons.move-folder />
-                                </button>
-                                {{-- Descarregar (apenas ficheiros) --}}
-                                <button type="button" x-show="allSelectedAreFiles()" @click="downloadSelected()"
-                                    aria-label="@lang('file-manager::file-manager.download')"
-                                    class="fm-tip p-2 rounded-full bg-white border border-proximo-200 text-proximo-700 hover:bg-proximo-100">
-                                    <x-file-manager::icons.download />
-                                </button>
-                                {{-- Info (1 item) --}}
-                                <button type="button" x-show="selectedItem()"
-                                    @click="openModal({ action: 'info', file: selectedItem() })"
-                                    aria-label="@lang('file-manager::file-manager.info')"
-                                    class="fm-tip p-2 rounded-full bg-white border border-proximo-200 text-proximo-700 hover:bg-proximo-100">
-                                    <x-file-manager::icons.info />
-                                </button>
-                                {{-- Eliminar (qualquer seleção) --}}
-                                <button type="button" @click="deleteSelected()" aria-label="@lang('file-manager::file-manager.delete')"
-                                    class="fm-tip p-2 rounded-full bg-red-600 text-white hover:bg-red-700">
-                                    <x-file-manager::icons.delete />
-                                </button>
+                <div class="flex h-8 text-gray-600 items-center w-full min-w-0">
+                    <button type="button" wire:click="open(@js($this->rootPath))"
+                        class="bg-gray-50 shadow-[inset_1px_-39px_70px_-49px_rgba(0,0,0,0.11)] flex items-center justify-center w-8 h-8 shrink-0 border hover:bg-gray-100">
+                        <x-heroicon-s-home-modern class="h-4 w-4 text-proximo-800" />
+                    </button>
+                    <div class="w-full h-8 flex bg-white border-y items-center overflow-x-auto fm-scroll">
+                        @foreach ($crumbs as $i => $crumb)
+                            @if ($i > 0)
+                                <div class="h-full text-gray-200 shrink-0">
+                                    <svg class="h-full" width="8" viewBox="0 0 12 40" fill="none"
+                                        xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+                                        <path d="M0 0L12 20L0 40" stroke="currentColor" stroke-width="1"
+                                            vector-effect="non-scaling-stroke" />
+                                    </svg>
+                                </div>
                             @endif
-
-                            {{-- Mais opções: abre o menu de contexto da seleção --}}
-                            <button type="button" @click="openSelectionMenu($event)" aria-label="@lang('file-manager::file-manager.more_options')"
-                                class="fm-tip fm-tip-end p-2 rounded-full text-proximo-700 hover:bg-proximo-100">
-                                <x-file-manager::icons.ellipsis/>
+                            <button type="button" wire:click="open('{{ $crumb['path'] }}')"
+                                class="px-2 shrink-0 whitespace-nowrap hover:text-proximo-700 {{ $i === count($crumbs) - 1 ? 'font-semibold text-gray-800' : '' }}">
+                                {{ $crumb['label'] }}
                             </button>
-                        </div>
+                        @endforeach
                     </div>
-                </template>
+                    <button type="button" @click="copyPath()"
+                        class="bg-gray-100 flex items-center justify-center w-8 h-8 shrink-0 border hover:bg-gray-200"
+                        title="@lang('file-manager::file-manager.copy_path')">
+                        <template x-if="!pathCopied">
+                            <x-heroicon-s-clipboard-document class="h-4 w-4 text-gray-500" />
+                        </template>
+                        <template x-if="pathCopied">
+                            <x-heroicon-s-check class="h-4 w-4 text-green-600" />
+                        </template>
+                    </button>
+                </div>
+
+                <div class="flex">
+                    <input type="text" wire:model.live.debounce.300ms="search"
+                        placeholder="@lang('file-manager::file-manager.search')"
+                        class="bg-white border min-w-[140px] h-8 px-2 text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-proximo-500">
+                    <div class="bg-gray-100 flex items-center justify-center w-8 h-8 shrink-0 border">
+                        <x-heroicon-s-magnifying-glass class="h-4 w-4 text-gray-500" />
+                    </div>
+                </div>
+            </header>
+
+            {{-- Toolbar --}}
+            @php
+                $tbBtn = 'flex border w-fit h-8 items-center justify-center px-2 gap-1 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none whitespace-nowrap';
+                $menuItem = 'w-full text-left px-4 py-2 hover:bg-proximo-50 flex items-center gap-2 text-sm';
+            @endphp
+            <div class="bg-white p-2 shadow-md flex justify-between shrink-0">
+                <div class="flex items-center">
+                    @unless ($this->inTrash)
+                        <button type="button"
+                            @click="$dispatch('fm-modal', { action: 'add', type: 'folder', path: $wire.path })"
+                            class="{{ $tbBtn }}">
+                            <x-heroicon-o-folder class="text-gray-400 h-4 w-4" /> @lang('file-manager::file-manager.new_folder')
+                        </button>
+                        <label class="{{ $tbBtn }} cursor-pointer">
+                            <x-heroicon-s-cloud-arrow-up class="text-gray-400 h-4 w-4" /> @lang('file-manager::file-manager.upload')
+                            <input type="file" wire:model="uploads" multiple class="hidden">
+                        </label>
+                    @endunless
+
+                    {{-- Ações sobre a seleção (as mesmas do menu de contexto). --}}
+                    <div class="w-px h-6 bg-gray-200 mx-1" x-show="selected.length > 0" x-cloak></div>
+
+                    @if ($this->inTrash)
+                        <button type="button" x-show="selected.length > 0" x-cloak
+                            @click="$wire.restore([...selected]); selected = []" class="{{ $tbBtn }}">
+                            <x-file-manager::icons.restore class="h-4 w-4 text-proximo-600" /> @lang('file-manager::file-manager.restore')
+                        </button>
+                        <button type="button" x-show="selected.length > 0" x-cloak
+                            @click="$wire.deleteForever([...selected]); selected = []"
+                            class="{{ $tbBtn }} text-red-600">
+                            <x-file-manager::icons.delete-fill /> @lang('file-manager::file-manager.delete_forever')
+                        </button>
+                    @else
+                        {{-- No máximo 2 ações inline (aplicam-se sempre a qualquer seleção); o resto no "Ver mais". --}}
+                        <button type="button" x-show="selected.length > 0" x-cloak @click="openMoveModal()"
+                            class="{{ $tbBtn }}">
+                            <x-file-manager::icons.move-folder class="h-4 w-4 text-proximo-600" /> @lang('file-manager::file-manager.move')
+                        </button>
+                        <button type="button" x-show="selected.length > 0" x-cloak @click="deleteSelected()"
+                            class="{{ $tbBtn }} text-red-600">
+                            <x-file-manager::icons.delete /> @lang('file-manager::file-manager.delete')
+                        </button>
+
+                        {{-- Ver mais : restantes features do menu de contexto --}}
+                        <div class="relative" x-data="{ moreOpen: false }" x-show="selected.length > 0" x-cloak
+                            @click.outside="moreOpen = false">
+                            <button type="button" @click="moreOpen = !moreOpen" class="{{ $tbBtn }}">
+                                <x-heroicon-o-ellipsis-horizontal class="text-gray-400 h-4 w-4" />
+                                @lang('file-manager::file-manager.more_options') ▾
+                            </button>
+                            <div x-show="moreOpen" x-cloak x-transition
+                                class="absolute left-0 mt-1 w-56 bg-white border border-gray-200 shadow-xl rounded-xl py-1 z-50 text-gray-700">
+                                <button type="button" x-show="picker && allSelectedAreFiles()"
+                                    @click="chooseSelected(); moreOpen=false" class="{{ $menuItem }}">
+                                    <x-file-manager::icons.tick class="h-4 w-4 text-proximo-600" />
+                                    @lang('file-manager::file-manager.choose')
+                                </button>
+                                <button type="button" x-show="selectedItem() && ['image','video'].includes(selectedItem().type)"
+                                    @click="preview(selectedItem()); moreOpen=false" class="{{ $menuItem }}">
+                                    <x-file-manager::icons.eye-icon class="h-4 w-4 text-proximo-600" />
+                                    <span x-text="selectedItem() && selectedItem().type === 'video' ? '@lang('file-manager::file-manager.view_video')' : '@lang('file-manager::file-manager.view_image')'"></span>
+                                </button>
+                                <button type="button" x-show="selectedItem()"
+                                    @click="openModal({ action: 'rename', file: selectedItem(), text: fmStripExt(selectedItem()) }); moreOpen=false"
+                                    class="{{ $menuItem }}">
+                                    <x-file-manager::icons.rename class="h-4 w-4 text-proximo-600" />
+                                    @lang('file-manager::file-manager.rename')
+                                </button>
+                                <button type="button" @click="openCopyModal(); moreOpen=false" class="{{ $menuItem }}">
+                                    <x-heroicon-o-document-duplicate class="h-4 w-4 text-proximo-600" />
+                                    @lang('file-manager::file-manager.copy_to')
+                                </button>
+                                <button type="button" x-show="allSelectedAreFiles()"
+                                    @click="downloadSelected(); moreOpen=false" class="{{ $menuItem }}">
+                                    <x-file-manager::icons.download class="h-4 w-4 text-proximo-600" />
+                                    @lang('file-manager::file-manager.download')
+                                </button>
+                                <button type="button" x-show="selectedItem() && selectedItem().type === 'folder'"
+                                    @click="openModal({ action: 'add', type: 'folder', path: selectedItem().path }); moreOpen=false"
+                                    class="{{ $menuItem }}">
+                                    <x-file-manager::icons.add-folder class="h-4 w-4 text-proximo-600" />
+                                    @lang('file-manager::file-manager.create_subfolder')
+                                </button>
+                                <button type="button" x-show="selectedItem()"
+                                    @click="openModal({ action: 'info', file: selectedItem() }); moreOpen=false"
+                                    class="{{ $menuItem }}">
+                                    <x-file-manager::icons.info class="h-4 w-4 text-proximo-600" />
+                                    @lang('file-manager::file-manager.info')
+                                </button>
+                            </div>
+                        </div>
+                    @endif
+                </div>
+
+                <div class="flex">
+                    <button type="button" @click="view = 'grid'"
+                        class="flex border w-fit h-8 items-center justify-center px-2 gap-1 hover:bg-gray-50"
+                        :class="view === 'grid' ? 'bg-proximo-50 text-proximo-700 border-proximo-300' : 'text-gray-400'">
+                        <x-heroicon-o-squares-2x2 class="h-4 w-4" />
+                    </button>
+                    <button type="button" @click="view = 'list'"
+                        class="flex border w-fit h-8 items-center justify-center px-2 gap-1 hover:bg-gray-50"
+                        :class="view === 'list' ? 'bg-proximo-50 text-proximo-700 border-proximo-300' : 'text-gray-400'">
+                        <x-heroicon-o-list-bullet class="h-4 w-4" />
+                    </button>
+                </div>
             </div>
 
-            {{-- Área de ficheiros (drop de upload do SO) --}}
-            <div class="relative flex-1 overflow-y-auto fm-scroll" wire:loading.class="opacity-60"
+            {{-- ===================== Itens (única zona rolável) ===================== --}}
+            <main class="relative flex-1 overflow-y-auto fm-scroll px-2 bg-white" wire:loading.class="opacity-60"
                 @click.self="selected = []" @contextmenu.self.prevent="openBackgroundMenu($event)"
                 @dragover.prevent="onDragOverUpload($event)" @dragleave="uploadHover = false"
                 @drop.prevent="onDropUpload($event)" :class="uploadHover ? 'bg-proximo-100/50' : ''">
 
                 @php $items = $this->files; @endphp
 
-                {{-- Vazio --}}
                 @if (count($items) === 0)
                     <div class="flex flex-col items-center justify-center py-20 text-gray-400">
                         <svg class="h-16 w-16 opacity-20 mb-4" fill="currentColor" viewBox="0 0 20 20">
@@ -335,76 +344,46 @@
                     </div>
                 @endif
 
-                {{-- GRID --}}
                 @if (count($items) > 0)
-                <div x-show="view === 'grid'" @contextmenu.self.prevent="openBackgroundMenu($event)"
-                    class="grid pt-2 grid-cols-[repeat(auto-fill,160px)] gap-2 justify-center content-start min-h-full">
-                    @foreach ($items as $file)
-                        @include('file-manager::livewire.partials.grid-item', ['file' => $file])
-                    @endforeach
-                </div>
-                @endif
-
-                {{-- LISTA --}}
-                @if (count($items) > 0)
-                <table x-show="view === 'list'" x-cloak class="w-full text-left text-sm">
-                    <thead class="bg-gray-50 sticky top-0 z-10 text-[11px] uppercase tracking-wide text-gray-600">
-                        <tr>
-                            <th class="px-3 py-2.5 w-10 text-center" @click.stop>
-                                <input type="checkbox" :checked="allChecked()" @change="toggleCheckAll()"
-                                    class="fm-check h-4 w-4 rounded border-gray-300 text-proximo-600 cursor-pointer align-middle">
-                            </th>
-                            <th class="px-4 py-2.5">@lang('file-manager::file-manager.name')</th>
-                            <th class="px-3 py-2.5 text-center w-24">@lang('file-manager::file-manager.size')</th>
-                            <th class="px-3 py-2.5 text-center w-28">@lang('file-manager::file-manager.type')</th>
-                            <th class="px-4 py-2.5 text-right w-40">@lang('file-manager::file-manager.modified')</th>
-                            @if ($this->inTrash)
-                                <th class="px-4 py-2.5 text-right w-32">@lang('file-manager::file-manager.time_left')</th>
-                            @endif
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-100">
+                    <div x-show="view === 'grid'" x-cloak @contextmenu.self.prevent="openBackgroundMenu($event)"
+                        class="grid pt-2 grid-cols-[repeat(auto-fill,160px)] gap-2 justify-center content-start">
                         @foreach ($items as $file)
-                            @include('file-manager::livewire.partials.list-item', ['file' => $file])
+                            @include('file-manager::livewire.partials.grid-item', ['file' => $file])
                         @endforeach
-                    </tbody>
-                </table>
+                    </div>
+
+                    <table x-show="view === 'list'" x-cloak class="w-full text-left text-sm">
+                        <thead class="bg-gray-50 sticky top-0 z-10 text-[11px] uppercase tracking-wide text-gray-600">
+                            <tr>
+                                <th class="px-3 py-2.5 w-10 text-center" @click.stop>
+                                    <input type="checkbox" :checked="allChecked()" @change="toggleCheckAll()"
+                                        class="fm-check h-4 w-4 rounded border-gray-300 text-proximo-600 cursor-pointer align-middle">
+                                </th>
+                                <th class="px-4 py-2.5">@lang('file-manager::file-manager.name')</th>
+                                <th class="px-3 py-2.5 text-center w-24">@lang('file-manager::file-manager.size')</th>
+                                <th class="px-3 py-2.5 text-center w-28">@lang('file-manager::file-manager.type')</th>
+                                <th class="px-4 py-2.5 text-right w-40">@lang('file-manager::file-manager.modified')</th>
+                                @if ($this->inTrash)
+                                    <th class="px-4 py-2.5 text-right w-32">@lang('file-manager::file-manager.time_left')</th>
+                                @endif
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            @foreach ($items as $file)
+                                @include('file-manager::livewire.partials.list-item', ['file' => $file])
+                            @endforeach
+                        </tbody>
+                    </table>
                 @endif
-            </div>
+            </main>
         </div>
     </div>
 
-    {{-- ===================== FAB (upload / nova pasta) ===================== --}}
-    @unless ($this->inTrash)
-        <div class="absolute bottom-10 right-10 flex flex-col items-center gap-3 z-40" @click.outside="fabOpen = false">
-            <div x-show="fabOpen" x-transition class="flex flex-col items-center gap-3">
-                <label
-                    class="fm-tip fm-tip-left flex items-center justify-center w-12 h-12 bg-white text-proximo-700 rounded-full shadow-xl border border-gray-200 cursor-pointer hover:bg-gray-100"
-                    aria-label="@lang('file-manager::file-manager.upload')">
-                <x-file-manager::icons.arrow-up/>
-                    <input type="file" wire:model="uploads" multiple class="hidden">
-                </label>
-                <button type="button"
-                    @click="$dispatch('fm-modal', { action: 'add', type: 'folder', path: $wire.path }); fabOpen=false"
-                    class="fm-tip fm-tip-left flex items-center justify-center w-12 h-12 bg-white text-proximo-700 rounded-full shadow-xl border border-gray-200 hover:bg-gray-100"
-                    aria-label="@lang('file-manager::file-manager.new_folder')">
-                    <x-file-manager::icons.add-folder class="h-6 w-6" />
-
-                </button>
-            </div>
-            <button type="button" @click="fabOpen = !fabOpen"
-                class="flex items-center justify-center w-14 h-14 text-white rounded-full shadow-2xl transition-all duration-300"
-                :class="fabOpen ? ' bg-red-500' : 'rotate-45 bg-proximo-700'">
-                <x-file-manager::icons.cross class="h-8 w-8"/>
-            </button>
-        </div>
-
-        {{-- Barra de progresso de upload --}}
-        <div wire:loading wire:target="uploads"
-            class="fixed bottom-28 right-10 z-40 w-40 h-2 bg-gray-200 rounded-full overflow-hidden">
-            <div class="h-full bg-proximo-500 animate-pulse w-full"></div>
-        </div>
-    @endunless
+    {{-- Barra de progresso de upload --}}
+    <div wire:loading wire:target="uploads"
+        class="fixed bottom-6 right-6 z-40 w-40 h-2 bg-gray-200 rounded-full overflow-hidden">
+        <div class="h-full bg-proximo-500 animate-pulse w-full"></div>
+    </div>
 
     {{-- ===================== Menu de contexto ===================== --}}
     @include('file-manager::livewire.partials.context-menu')

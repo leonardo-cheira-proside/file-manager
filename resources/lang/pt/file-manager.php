@@ -3,6 +3,8 @@
 return [
     'title' => 'Gestor de Ficheiros',
     'directories' => 'Diretórios',
+    'up' => 'Subir um nível',
+    'copy_path' => 'Copiar caminho',
     'search' => 'Pesquisar ficheiros...',
     'filters' => 'Filtros',
     'sort_by' => 'Ordenar por',
@@ -33,6 +35,8 @@ return [
     'move' => 'Mover',
     'move_to' => 'Mover para…',
     'move_here' => 'Mover para aqui',
+    'copy_to' => 'Copiar para…',
+    'copy_here' => 'Copiar para aqui',
     'move_pick_dest' => 'Escolha a pasta de destino',
     'choose' => 'Escolher',
     'create_subfolder' => 'Criar subdiretoria',

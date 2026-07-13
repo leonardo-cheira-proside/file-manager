@@ -298,6 +298,56 @@ class FileManagerService
     }
 
     /**
+     * Copia itens (ficheiros e pastas, recursivamente) para uma pasta destino.
+     *
+     * @param  array<int,string>  $from
+     * @return array<int,array<string,mixed>>
+     */
+    public function copy(array $from, string $to): array
+    {
+        $to = $this->guard->normalize($to);
+        $results = [];
+
+        foreach ($from as $item) {
+            try {
+                $item = $this->guard->normalize($item);
+            } catch (\Throwable $e) {
+                $results[] = ['from' => $item, 'success' => false, 'message' => $e->getMessage()];
+
+                continue;
+            }
+
+            if ($item === $to || Str::startsWith($to, $item . '/')) {
+                $results[] = ['from' => $item, 'success' => false, 'message' => 'Destino inválido'];
+
+                continue;
+            }
+
+            $target = $this->uniquePath($to . '/' . basename($item));
+            if ($this->isDirectory($item)) {
+                $this->copyDirectory($item, $target);
+            } else {
+                $this->disk->copy($item, $target);
+            }
+            $results[] = ['from' => $item, 'success' => true, 'to' => $target];
+        }
+
+        return $results;
+    }
+
+    /** Cópia recursiva de uma pasta (ficheiros + subpastas). */
+    protected function copyDirectory(string $src, string $dst): void
+    {
+        $this->disk->makeDirectory($dst);
+        foreach ($this->disk->files($src) as $file) {
+            $this->disk->copy($file, $dst . '/' . basename($file));
+        }
+        foreach ($this->disk->directories($src) as $dir) {
+            $this->copyDirectory($dir, $dst . '/' . basename($dir));
+        }
+    }
+
+    /**
      * Move um ficheiro carregado (UploadedFile/TemporaryUploadedFile) para a
      * pasta indicada, mantendo o nome original e evitando colisões.
      */

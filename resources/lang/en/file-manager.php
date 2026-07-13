@@ -3,6 +3,8 @@
 return [
     'title' => 'File Manager',
     'directories' => 'Directories',
+    'up' => 'Up one level',
+    'copy_path' => 'Copy path',
     'search' => 'Search files...',
     'filters' => 'Filters',
     'sort_by' => 'Sort by',
@@ -33,6 +35,8 @@ return [
     'move' => 'Move',
     'move_to' => 'Move to…',
     'move_here' => 'Move here',
+    'copy_to' => 'Copy to…',
+    'copy_here' => 'Copy here',
     'move_pick_dest' => 'Choose the destination folder',
     'choose' => 'Choose',
     'create_subfolder' => 'Create subfolder',

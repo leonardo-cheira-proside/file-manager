@@ -11,7 +11,8 @@
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 11v6m0-6l-2 2m2-2l2 2" />
                 </svg>
             </div>
-            <h2 class="font-bold text-lg">@lang('file-manager::file-manager.move_to')</h2>
+            <h2 class="font-bold text-lg"
+                x-text="moveModal.mode === 'copy' ? '@lang('file-manager::file-manager.copy_to')' : '@lang('file-manager::file-manager.move_to')'"></h2>
         </div>
 
         <p class="text-xs text-gray-500 mb-3">
@@ -46,8 +47,8 @@
             <button type="button" @click="moveModal.open = false"
                 class="px-4 py-1.5 border border-gray-300 rounded-lg">@lang('file-manager::file-manager.cancel')</button>
             <button type="button" @click="confirmMove()" :disabled="moveModal.target === ''"
-                class="px-4 py-1.5 text-white rounded-lg bg-proximo-600 disabled:opacity-40 disabled:cursor-not-allowed">
-                @lang('file-manager::file-manager.move_here')
+                class="px-4 py-1.5 text-white rounded-lg bg-proximo-600 disabled:opacity-40 disabled:cursor-not-allowed"
+                x-text="moveModal.mode === 'copy' ? '@lang('file-manager::file-manager.copy_here')' : '@lang('file-manager::file-manager.move_here')'">
             </button>
         </div>
     </div>

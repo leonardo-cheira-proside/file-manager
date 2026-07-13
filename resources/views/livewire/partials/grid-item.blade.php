@@ -3,8 +3,8 @@
     data-fm-name="{{ $file['name'] }}" data-fm-url="{{ $file['url'] }}" data-fm-ext="{{ $file['extension'] ?? '' }}"
     data-fm-size="{{ $file['sizeFormatted'] ?? '' }}" data-fm-modified="{{ $file['modified'] ?? '' }}"
     class="relative cursor-pointer w-40 p-4 border rounded-xl transition-all flex flex-col items-center justify-center text-center group"
-    :class="isSelected(@js($file['path'])) ? 'border-proximo-600 bg-proximo-50 ring-2 ring-proximo-200' :
-        'border-gray-200 bg-white hover:border-proximo-300 hover:shadow-md'"
+    :class="isSelected(@js($file['path'])) ? 'border-blue-400 bg-blue-100 ring-1 ring-blue-300' :
+        'border-transparent hover:bg-gray-100'"
     title="{{ $file['name'] }}" @click="toggleSelect(@js($file['path']), $event.shiftKey)"
     @dblclick="openItem({{ $fm }})" @contextmenu.prevent="openMenu($event, {{ $fm }})"
     draggable="true" @dragstart="onDragStart($event, {{ $fm }})"
@@ -36,11 +36,7 @@
                 <video src="{{ $file['url'] }}#t=0.5" preload="metadata" muted
                     class="max-h-full max-w-full object-cover rounded"></video>
             @else
-                <svg class="h-12 w-12 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.5"
-                    viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round"
-                        d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-                </svg>
+                @include('file-manager::livewire.partials.file-icon', ['file' => $file, 'class' => 'h-14 w-14'])
             @endif
         </div>
         <p class="text-[11px] mt-2 truncate font-medium text-gray-600 group-hover:text-proximo-700 w-full px-1">

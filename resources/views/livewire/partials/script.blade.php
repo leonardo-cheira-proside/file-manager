@@ -110,13 +110,34 @@
             openMoveModal() {
                 if (!this.selected.length) return;
                 this.menu.open = false;
-                this.moveModal = { open: true, target: '' };
+                this.moveModal = { open: true, target: '', mode: 'move' };
+            },
+            openCopyModal() {
+                if (!this.selected.length) return;
+                this.menu.open = false;
+                this.moveModal = { open: true, target: '', mode: 'copy' };
             },
             confirmMove() {
                 if (this.moveModal.target === '' || !this.selected.length) return;
-                this.$wire.moveItems([...this.selected], this.moveModal.target);
+                if (this.moveModal.mode === 'copy') {
+                    this.$wire.copyItems([...this.selected], this.moveModal.target);
+                } else {
+                    this.$wire.moveItems([...this.selected], this.moveModal.target);
+                }
                 this.selected = [];
                 this.moveModal.open = false;
+            },
+            // ---------- Atalhos de teclado ----------
+            onShortcut(e) {
+                // Ignora quando se está a escrever num campo.
+                const t = e.target;
+                if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+                if (this.modal.open || this.moveModal.open || this.menu.open) return;
+                const meta = e.ctrlKey || e.metaKey;
+                if (e.key === 'Delete' && this.selected.length) { e.preventDefault(); this.deleteSelected(); }
+                else if (meta && e.key.toLowerCase() === 'a') { e.preventDefault(); this.selectAllVisible(); }
+                else if (meta && e.key.toLowerCase() === 'c' && this.selected.length) { e.preventDefault(); this.openCopyModal(); }
+                else if (meta && e.key.toLowerCase() === 'x' && this.selected.length) { e.preventDefault(); this.openMoveModal(); }
             },
 
             // ---------- Abrir / preview ----------
@@ -155,8 +176,11 @@
                 return t.length > 0 && t.every((f) => f && types.includes(f.type));
             },
             itemsFor(paths) {
+                // A partir da raiz do componente (o $root pode ser um x-data aninhado,
+                // ex.: o dropdown "Mais opções", que não contém os itens da grelha).
+                const root = (this.$root && this.$root.closest('.fm-root')) || document;
                 return paths.map((p) => {
-                    const el = this.$root.querySelector(`[data-fm-path="${CSS.escape(p)}"]`);
+                    const el = root.querySelector(`[data-fm-path="${CSS.escape(p)}"]`);
                     return el ? {
                         path: p,
                         type: el.dataset.fmType,

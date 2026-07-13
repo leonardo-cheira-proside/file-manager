@@ -182,7 +182,7 @@ class FileManager extends Component
         $this->selected = [];
 
         // Limpa a seleção no cliente (Alpine) ao mudar de pasta.
-        $this->dispatch('fm-navigated');
+        $this->dispatch('fm-navigated', path: $this->path);
     }
 
     public function toggleFolder(string $path): void
@@ -291,6 +291,16 @@ class FileManager extends Component
             return;
         }
         $this->service()->move($from, $to);
+        $this->selected = [];
+        $this->refreshData();
+    }
+
+    public function copyItems(array $from, string $to): void
+    {
+        if ($this->inTrash) {
+            return;
+        }
+        $this->service()->copy($from, $to);
         $this->selected = [];
         $this->refreshData();
     }

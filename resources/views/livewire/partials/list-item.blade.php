@@ -3,7 +3,7 @@
     data-fm-name="{{ $file['name'] }}" data-fm-url="{{ $file['url'] }}" data-fm-ext="{{ $file['extension'] ?? '' }}"
     data-fm-size="{{ $file['sizeFormatted'] ?? '' }}" data-fm-modified="{{ $file['modified'] ?? '' }}"
     class="group cursor-pointer"
-    :class="isSelected(@js($file['path'])) ? 'bg-proximo-100' : 'hover:bg-proximo-50'"
+    :class="isSelected(@js($file['path'])) ? 'bg-blue-100' : 'hover:bg-gray-50'"
     @click="toggleSelect(@js($file['path']), $event.shiftKey)" @dblclick="openItem({{ $fm }})"
     @contextmenu.prevent="openMenu($event, {{ $fm }})" draggable="true"
     @dragstart="onDragStart($event, {{ $fm }})"
@@ -31,11 +31,7 @@
                         d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" />
                 </svg>
             @else
-                <svg class="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" stroke-width="1.5"
-                    viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round"
-                        d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 12.75H12" />
-                </svg>
+                @include('file-manager::livewire.partials.file-icon', ['file' => $file, 'class' => 'w-5 h-6 shrink-0'])
             @endif
             <span
                 class="text-[13px] font-medium text-gray-700 group-hover:text-proximo-900 truncate">{{ $file['name'] }}</span>
