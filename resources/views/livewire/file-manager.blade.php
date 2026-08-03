@@ -112,8 +112,8 @@
             }
         }">
         {{-- ===================== Sidebar (árvore) ===================== --}}
-        <nav :style="`width:${sbW}px`"
-            class="border-gray-200/50 bg-white shrink-0 h-full overflow-y-auto overflow-x-hidden fm-scroll"
+        <nav :style="`max-width:${sbW}px`"
+            class="border-gray-200/50 bg-white shrink-0 h-full w-fit min-w-0 overflow-y-auto overflow-x-hidden fm-scroll"
             :class="sbW > 0 ? 'p-3' : 'p-0'">
             @foreach ($this->roots as $root)
                 <div wire:key="root-{{ $root['path'] }}" class="mb-1">
@@ -334,7 +334,8 @@
                 @php $items = $this->files; @endphp
 
                 @if (count($items) === 0)
-                    <div class="flex flex-col items-center justify-center py-20 text-gray-400">
+                    <div class="flex flex-col items-center justify-center py-20 text-gray-400 min-h-full"
+                        @click="selected = []" @contextmenu.prevent="openBackgroundMenu($event)">
                         <svg class="h-16 w-16 opacity-20 mb-4" fill="currentColor" viewBox="0 0 20 20">
                             <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
                         </svg>
