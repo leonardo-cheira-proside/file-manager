@@ -60,7 +60,15 @@
             viaHistory: false,
             init() {
                 const saved = parseInt(localStorage.getItem('fmSidebarW'));
-                if (!isNaN(saved)) this.sbW = saved;
+                if (!isNaN(saved)) {
+                    this.sbW = saved;
+                } else {
+                    // Sem valor guardado: ajusta ao conteúdo (não estica a 320).
+                    this.$nextTick(() => {
+                        const nav = this.$refs.sidebar;
+                        if (nav) this.sbW = Math.min(560, Math.max(200, nav.scrollWidth + 12));
+                    });
+                }
                 if (this.sbW > 0) this.lastW = this.sbW;
                 this.$watch('sbW', v => localStorage.setItem('fmSidebarW', v));
                 // Semente do histórico com a pasta atual.
@@ -112,8 +120,8 @@
             }
         }">
         {{-- ===================== Sidebar (árvore) ===================== --}}
-        <nav :style="`max-width:${sbW}px`"
-            class="border-gray-200/50 bg-white shrink-0 h-full w-fit min-w-0 overflow-y-auto overflow-x-hidden fm-scroll"
+        <nav x-ref="sidebar" :style="`width:${sbW}px`"
+            class="border-gray-200/50 bg-white shrink-0 h-full min-w-0 overflow-y-auto overflow-x-hidden fm-scroll"
             :class="sbW > 0 ? 'p-3' : 'p-0'">
             @foreach ($this->roots as $root)
                 <div wire:key="root-{{ $root['path'] }}" class="mb-1">
