@@ -83,14 +83,52 @@
     },
     isImage(p) { return /\.(jpe?g|png|gif|webp|svg|bmp|avif)$/i.test(p || ''); },
     isVideo(p) { return /\.(mp4|webm|ogg|mov|m4v|avi)$/i.test(p || ''); },
+    isMedia(p) { return this.isImage(p) || this.isVideo(p); },
+
+    // Ver imagem/vídeo em grande (lightbox local do picker).
+    light: { open: false, url: '', video: false },
+    openLight(path) {
+        if (!this.isMedia(path)) return;
+        this.light = { open: true, url: this.preview(path), video: this.isVideo(path) };
+    },
+
+    // Drag & drop na dropzone: faz upload e seleciona automaticamente.
+    multiple: @js($allowMultiple),
+    uploadUrl: @js(route('file-manager.upload')),
+    csrf: @js(csrf_token()),
+    dragOver: false,
+    uploading: 0,
+    onDrop(e) {
+        this.dragOver = false;
+        const files = [...(e.dataTransfer?.files || [])];
+        if (files.length) this.uploadFiles(files);
+    },
+    uploadFiles(files) {
+        (this.multiple ? files : files.slice(0, 1)).forEach((file) => {
+            const fd = new FormData();
+            fd.append('file', file);
+            this.uploading++;
+            fetch(this.uploadUrl, { method: 'POST', headers: { 'X-CSRF-TOKEN': this.csrf, 'Accept': 'application/json' }, body: fd })
+                .then((r) => r.ok ? r.json() : Promise.reject(r))
+                .then((d) => {
+                    if (!d.path) return;
+                    this.broken = {};
+                    this.selected = this.multiple ? [...this.selected, d.path] : [d.path];
+                })
+                .catch(() => {})
+                .finally(() => this.uploading--);
+        });
+    },
 }" @file-manager-selected.window="applySelection($event.detail)"
     @reset-file-picker.window="if (!$event.detail?.inputName || $event.detail.inputName === @js($inputName)) { selected = []; open = false; broken = {}; }"
     @keydown.escape.window="open = false" {{ $attributes->merge(['class' => 'w-full']) }}>
 
     @if ($size === 'large')
-        {{-- Variante dropzone: caixa tracejada clicável (abre o mesmo modal). --}}
+        {{-- Dropzone: clicável (abre modal) e o drop faz upload + seleciona automaticamente. --}}
         <button type="button" @click="open = true"
-            class="w-full flex flex-col items-center justify-center gap-2 px-6 py-10 border-2 border-dashed border-gray-300 rounded-2xl bg-white hover:border-proximo-400 hover:bg-gray-50/60 transition text-center">
+            @dragover.prevent="dragOver = true" @dragleave.prevent="dragOver = false" @drop.prevent="onDrop($event)"
+            class="w-full flex flex-col items-center justify-center gap-2 px-6 py-10 border-2 border-dashed rounded-2xl transition text-center"
+            :class="dragOver ? 'border-proximo-500 bg-proximo-50/60' : 'border-gray-300 bg-white hover:border-proximo-400 hover:bg-gray-50/60'">
             <svg class="h-9 w-9 text-gray-700" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round"
                     d="M7 18a4 4 0 01-.9-7.9A5 5 0 0116.9 8.6 3.5 3.5 0 0117 18h-1" />
@@ -100,31 +138,32 @@
             <span class="text-sm text-gray-400">{{ $dropHint }}</span>
             <span
                 class="mt-3 px-5 py-2 border border-gray-300 rounded-lg text-gray-700 text-sm font-medium">@lang('file-manager::file-manager.browse_file')</span>
+            <span x-show="uploading > 0" x-cloak class="text-xs text-proximo-600 mt-1 animate-pulse">
+                @lang('file-manager::file-manager.uploading')</span>
         </button>
 
-        {{-- Lista de ficheiros selecionados (linhas) --}}
-        <div class="mt-3 space-y-2" x-show="selected.length">
+        {{-- Selecionados: cards grandes, clicáveis para ver em grande. --}}
+        <div class="mt-3 flex flex-wrap gap-3" x-show="selected.length">
             <template x-for="(path, i) in selected" :key="path">
-                <div class="flex items-center gap-3 p-3 rounded-xl bg-gray-100/70" x-show="!isBroken(path)">
-                    <div class="w-12 h-12 rounded-lg overflow-hidden bg-white border border-gray-200 flex items-center justify-center shrink-0"
-                        :title="path">
+                <div class="relative group" x-show="!isBroken(path)">
+                    <div class="w-28 h-28 rounded-xl overflow-hidden bg-gray-100 border border-gray-200 flex items-center justify-center"
+                        :class="isMedia(path) ? 'cursor-zoom-in' : ''" :title="path" @click="openLight(path)">
                         <template x-if="isImage(path)"><img :src="preview(path)" class="w-full h-full object-cover"
                                 loading="lazy" @@error="markBroken(path)" alt=""></template>
                         <template x-if="isVideo(path)"><video :src="preview(path)" class="w-full h-full object-cover"
                                 muted @@error="markBroken(path)"></video></template>
-                        <template x-if="!isImage(path) && !isVideo(path)">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-400" fill="none"
+                        <template x-if="!isMedia(path)">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-gray-400" fill="none"
                                 viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
                                     d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                             </svg>
                         </template>
                     </div>
-                    <span class="flex-1 min-w-0 truncate text-sm text-gray-700" x-text="path.split('/').pop()"></span>
                     <button type="button" @click.stop="selected = selected.filter((_, idx) => idx !== i)"
                         aria-label="@lang('file-manager::file-manager.remove')"
-                        class="text-gray-400 hover:text-gray-600 shrink-0">
-                        <x-file-manager::icons.cross class="w-5 h-5" />
+                        class="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-white border border-gray-200 shadow flex items-center justify-center text-gray-500 hover:text-red-600">
+                        <x-file-manager::icons.cross class="w-4 h-4" />
                     </button>
                 </div>
             </template>
@@ -144,8 +183,8 @@
         <template x-for="(path, i) in selected" :key="path">
             {{-- Só mostra o tile quando a media existe (imagem/vídeo carrega). Se falhar, esconde tudo. --}}
             <div class="relative group flex items-center" x-show="!isBroken(path)">
-                <div class="w-14 h-14 rounded-lg overflow-hidden bg-gray-100 border border-gray-200 flex items-center justify-center shrink-0"
-                    :title="path">
+                <div class="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 border border-gray-200 flex items-center justify-center shrink-0"
+                    :class="isMedia(path) ? 'cursor-zoom-in' : ''" :title="path" @click="openLight(path)">
                     <template x-if="isImage(path)"><img :src="preview(path)" class="w-full h-full object-cover"
                             loading="lazy" @@error="markBroken(path)" alt=""></template>
                     <template x-if="isVideo(path)"><video :src="preview(path)" class="w-full h-full object-cover"
@@ -193,5 +232,16 @@
                     wire:key="{{ $pickerId }}" />
             </div>
         </div>
+    </div>
+
+    {{-- Lightbox: ver imagem/vídeo selecionado em grande. --}}
+    <div x-show="light.open" x-cloak @click="light.open = false" @keydown.escape.window="light.open = false"
+        class="fixed inset-0 bg-black/80 flex items-center justify-center z-[10000] p-6 cursor-zoom-out">
+        <template x-if="!light.video">
+            <img :src="light.url" class="max-w-[92vw] max-h-[92vh] object-contain rounded" @click.stop alt="">
+        </template>
+        <template x-if="light.video">
+            <video :src="light.url" controls autoplay class="max-w-[92vw] max-h-[92vh] rounded" @click.stop></video>
+        </template>
     </div>
 </div>

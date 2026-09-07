@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Proside\FileManager\Http\Controllers\MediaController;
+use Proside\FileManager\Http\Controllers\UploadController;
 
 $config = config('file-manager.route');
 $prefix = $config['prefix'] ?? 'file-manager';
@@ -13,6 +14,9 @@ Route::middleware($middleware)
     ->group(function () use ($config) {
         // Serve media (disco-agnóstico, respeita auth).
         Route::get('media', MediaController::class)->name('media');
+
+        // Upload direto (drag & drop do picker).
+        Route::post('upload', UploadController::class)->name('upload');
 
         // Página full-page opcional com o gestor completo.
         if ($config['enabled'] ?? true) {

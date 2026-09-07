@@ -77,6 +77,18 @@ class FileManagerComponentTest extends TestCase
             ->assertSee('a.png');
     }
 
+    public function test_upload_route_stores_and_returns_path(): void
+    {
+        $res = $this->actingAs(new \Illuminate\Foundation\Auth\User())
+            ->post(route('file-manager.upload'), [
+                'file' => UploadedFile::fake()->image('drop.png'),
+            ]);
+
+        $res->assertOk();
+        $this->assertSame('conteudos/drop.png', $res->json('path'));
+        $this->assertTrue(Storage::disk('fm-test')->exists('conteudos/drop.png'));
+    }
+
     public function test_delete_moves_to_trash(): void
     {
         Storage::disk('fm-test')->put('conteudos/a.png', 'x');

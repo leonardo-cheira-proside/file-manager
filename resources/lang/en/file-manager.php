@@ -61,6 +61,7 @@ return [
     'drop_title' => 'Choose a file or drag & drop it here',
     'drop_hint' => ':formats — up to :max MB',
     'all_formats' => 'All formats',
+    'uploading' => 'Uploading…',
     'remove' => 'Remove',
     'library' => 'File library',
     'info' => 'Information',

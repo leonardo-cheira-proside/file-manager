@@ -61,6 +61,7 @@ return [
     'drop_title' => 'Escolha um ficheiro ou arraste-o para aqui',
     'drop_hint' => ':formats — até :max MB',
     'all_formats' => 'Todos os formatos',
+    'uploading' => 'A carregar…',
     'remove' => 'Remover',
     'library' => 'Biblioteca de ficheiros',
     'info' => 'Informações',
