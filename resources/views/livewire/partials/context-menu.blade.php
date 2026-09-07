@@ -93,7 +93,7 @@
                 <div class="border-t border-gray-100 my-1"></div>
                 <button type="button" @click="openCopyModal()"
                     class="w-full text-left px-4 py-2.5 hover:bg-proximo-50 flex items-center gap-2">
-                    <x-heroicon-o-document-duplicate class="h-4 w-4 text-proximo-600" />
+                    <x-file-manager::icons.duplicate class="h-4 w-4 text-proximo-600" />
                     <span>@lang('file-manager::file-manager.copy_to')</span>
                 </button>
                 <button type="button" @click="openMoveModal()"

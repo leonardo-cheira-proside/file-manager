@@ -57,6 +57,10 @@ return [
     'expired' => 'Expirado',
     // Picker
     'select_file' => 'Selecionar ficheiro',
+    'browse_file' => 'Procurar ficheiro',
+    'drop_title' => 'Escolha um ficheiro ou arraste-o para aqui',
+    'drop_hint' => ':formats — até :max MB',
+    'all_formats' => 'Todos os formatos',
     'remove' => 'Remover',
     'library' => 'Biblioteca de ficheiros',
     'info' => 'Informações',

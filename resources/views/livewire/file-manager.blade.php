@@ -129,7 +129,7 @@
                         @drop.prevent="onDropMove($event, @js($root['path']))"
                         class="flex items-center gap-2 px-2 py-1.5 cursor-pointer rounded-md hover:bg-gray-100 text-sm"
                         :class="$wire.path === @js($root['path']) ? 'bg-gray-100 text-proximo-700 font-medium' : 'text-gray-700'">
-                        <x-heroicon-s-home-modern class="h-4 w-4 text-proximo-800 shrink-0" />
+                        <x-file-manager::icons.home class="h-4 w-4 text-proximo-800 shrink-0" />
                         <span class="truncate">{{ $root['label'] }}</span>
                     </div>
                     <ul class="ml-2">
@@ -173,18 +173,18 @@
                 <div class="flex">
                     <button type="button" @click="goBack()" :disabled="!canBack()"
                         class="h-8 w-8 bg-gray-50 shadow-[inset_1px_-39px_70px_-49px_rgba(0,0,0,0.11)] items-center justify-center flex border border-gray-200 hover:bg-gray-100 disabled:opacity-40 disabled:pointer-events-none">
-                        <x-heroicon-s-chevron-left class="text-gray-500 h-4 w-4" />
+                        <x-file-manager::icons.chevron-left class="text-gray-500 h-4 w-4" />
                     </button>
                     <button type="button" @click="goFwd()" :disabled="!canFwd()"
                         class="h-8 w-8 bg-gray-50 shadow-[inset_1px_-39px_70px_-49px_rgba(0,0,0,0.11)] items-center justify-center flex border border-gray-200 hover:bg-gray-100 disabled:opacity-40 disabled:pointer-events-none">
-                        <x-heroicon-s-chevron-right class="text-gray-500 h-4 w-4" />
+                        <x-file-manager::icons.chevron-right class="text-gray-500 h-4 w-4" />
                     </button>
                 </div>
 
                 <div class="flex h-8 text-gray-600 items-center w-full min-w-0 ">
                     <button type="button" wire:click="open(@js($this->rootPath))"
                         class="bg-gray-50 shadow-[inset_1px_-39px_70px_-49px_rgba(0,0,0,0.11)] flex items-center justify-center w-8 h-8 shrink-0 border hover:bg-gray-100">
-                        <x-heroicon-s-home-modern class="h-4 w-4 text-proximo-800" />
+                        <x-file-manager::icons.home class="h-4 w-4 text-proximo-800" />
                     </button>
                     <div class="w-full h-8 flex bg-white border-y items-center overflow-x-auto fm-scroll">
                         @foreach ($crumbs as $i => $crumb)
@@ -207,10 +207,10 @@
                         class="bg-gray-100 flex items-center justify-center w-8 h-8 shrink-0 border hover:bg-gray-200"
                         title="@lang('file-manager::file-manager.copy_path')">
                         <template x-if="!pathCopied">
-                            <x-heroicon-s-clipboard-document class="h-4 w-4 text-gray-500" />
+                            <x-file-manager::icons.clipboard class="h-4 w-4 text-gray-500" />
                         </template>
                         <template x-if="pathCopied">
-                            <x-heroicon-s-check class="h-4 w-4 text-green-600" />
+                            <x-file-manager::icons.tick class="h-4 w-4 text-green-600" />
                         </template>
                     </button>
                 </div>
@@ -220,7 +220,7 @@
                         placeholder="@lang('file-manager::file-manager.search')"
                         class="bg-white border border-gray-200 min-w-[140px] h-8 px-2 text-sm text-gray-700 outline-none focus:outline-none focus:ring-0 focus:border-gray-200">
                     <div class="bg-gray-100 flex items-center justify-center w-8 h-8 shrink-0 border">
-                        <x-heroicon-s-magnifying-glass class="h-4 w-4 text-gray-500" />
+                        <x-file-manager::icons.magnifying-glass class="h-4 w-4 text-gray-500" />
                     </div>
                 </div>
             </header>
@@ -236,10 +236,10 @@
                         <button type="button"
                             @click="$dispatch('fm-modal', { action: 'add', type: 'folder', path: $wire.path })"
                             class="{{ $tbBtn }}">
-                            <x-heroicon-o-folder class="text-gray-400 h-4 w-4" /> @lang('file-manager::file-manager.new_folder')
+                            <x-file-manager::icons.folder class="text-gray-400 h-4 w-4" /> @lang('file-manager::file-manager.new_folder')
                         </button>
                         <label class="{{ $tbBtn }} cursor-pointer">
-                            <x-heroicon-s-cloud-arrow-up class="text-gray-400 h-4 w-4" /> @lang('file-manager::file-manager.upload')
+                            <x-file-manager::icons.cloud-upload class="text-gray-400 h-4 w-4" /> @lang('file-manager::file-manager.upload')
                             <input type="file" wire:model="uploads" multiple class="hidden">
                         </label>
                     @endunless
@@ -272,7 +272,7 @@
                         <div class="relative" x-data="{ moreOpen: false }" x-show="selected.length > 0" x-cloak
                             @click.outside="moreOpen = false">
                             <button type="button" @click="moreOpen = !moreOpen" class="{{ $tbBtn }}">
-                                <x-heroicon-o-ellipsis-horizontal class="text-gray-400 h-4 w-4" />
+                                <x-file-manager::icons.ellipsis class="text-gray-400 h-4 w-4" />
                                 @lang('file-manager::file-manager.more_options') ▾
                             </button>
                             <div x-show="moreOpen" x-cloak x-transition
@@ -294,7 +294,7 @@
                                     @lang('file-manager::file-manager.rename')
                                 </button>
                                 <button type="button" @click="openCopyModal(); moreOpen=false" class="{{ $menuItem }}">
-                                    <x-heroicon-o-document-duplicate class="h-4 w-4 text-proximo-600" />
+                                    <x-file-manager::icons.duplicate class="h-4 w-4 text-proximo-600" />
                                     @lang('file-manager::file-manager.copy_to')
                                 </button>
                                 <button type="button" x-show="allSelectedAreFiles()"
@@ -323,12 +323,12 @@
                     <button type="button" @click="view = 'grid'"
                         class="flex border w-fit h-8 items-center justify-center px-2 gap-1 hover:bg-gray-50"
                         :class="view === 'grid' ? 'bg-proximo-50 text-proximo-700 border-proximo-300' : 'text-gray-400'">
-                        <x-heroicon-o-squares-2x2 class="h-4 w-4" />
+                        <x-file-manager::icons.grid class="h-4 w-4" />
                     </button>
                     <button type="button" @click="view = 'list'"
                         class="flex border w-fit h-8 items-center justify-center px-2 gap-1 hover:bg-gray-50"
                         :class="view === 'list' ? 'bg-proximo-50 text-proximo-700 border-proximo-300' : 'text-gray-400'">
-                        <x-heroicon-o-list-bullet class="h-4 w-4" />
+                        <x-file-manager::icons.list class="h-4 w-4" />
                     </button>
                 </div>
             </div>

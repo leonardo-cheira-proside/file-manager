@@ -4,6 +4,7 @@
     'multiple' => false,
     'filter' => null, // null | 'images' | 'videos'
     'label' => null,
+    'size' => 'small', // small (compacto) | large (dropzone)
 ])
 
 @php
@@ -38,6 +39,14 @@
 
     $pickerId = 'fmp_' . md5($inputName . uniqid('', true));
     $mediaBase = route('file-manager.media');
+
+    // Subtítulo da dropzone (variante large): formatos + tamanho máximo.
+    $maxMb = max(1, (int) round(((int) config('file-manager.uploads.max_size', 51200)) / 1024));
+    $mimes = array_filter((array) config('file-manager.uploads.mimes'));
+    $dropHint = __('file-manager::file-manager.drop_hint', [
+        'formats' => $mimes ? strtoupper(implode(', ', $mimes)) : __('file-manager::file-manager.all_formats'),
+        'max' => $maxMb,
+    ]);
 @endphp
 
 <div x-data="{
@@ -78,6 +87,49 @@
     @reset-file-picker.window="if (!$event.detail?.inputName || $event.detail.inputName === @js($inputName)) { selected = []; open = false; broken = {}; }"
     @keydown.escape.window="open = false" {{ $attributes->merge(['class' => 'w-full']) }}>
 
+    @if ($size === 'large')
+        {{-- Variante dropzone: caixa tracejada clicável (abre o mesmo modal). --}}
+        <button type="button" @click="open = true"
+            class="w-full flex flex-col items-center justify-center gap-2 px-6 py-10 border-2 border-dashed border-gray-300 rounded-2xl bg-white hover:border-proximo-400 hover:bg-gray-50/60 transition text-center">
+            <svg class="h-9 w-9 text-gray-700" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M7 18a4 4 0 01-.9-7.9A5 5 0 0116.9 8.6 3.5 3.5 0 0117 18h-1" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9.5 14.5l2 2 3.5-4" />
+            </svg>
+            <span class="text-lg font-semibold text-gray-800">@lang('file-manager::file-manager.drop_title')</span>
+            <span class="text-sm text-gray-400">{{ $dropHint }}</span>
+            <span
+                class="mt-3 px-5 py-2 border border-gray-300 rounded-lg text-gray-700 text-sm font-medium">@lang('file-manager::file-manager.browse_file')</span>
+        </button>
+
+        {{-- Lista de ficheiros selecionados (linhas) --}}
+        <div class="mt-3 space-y-2" x-show="selected.length">
+            <template x-for="(path, i) in selected" :key="path">
+                <div class="flex items-center gap-3 p-3 rounded-xl bg-gray-100/70" x-show="!isBroken(path)">
+                    <div class="w-12 h-12 rounded-lg overflow-hidden bg-white border border-gray-200 flex items-center justify-center shrink-0"
+                        :title="path">
+                        <template x-if="isImage(path)"><img :src="preview(path)" class="w-full h-full object-cover"
+                                loading="lazy" @@error="markBroken(path)" alt=""></template>
+                        <template x-if="isVideo(path)"><video :src="preview(path)" class="w-full h-full object-cover"
+                                muted @@error="markBroken(path)"></video></template>
+                        <template x-if="!isImage(path) && !isVideo(path)">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-400" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                        </template>
+                    </div>
+                    <span class="flex-1 min-w-0 truncate text-sm text-gray-700" x-text="path.split('/').pop()"></span>
+                    <button type="button" @click.stop="selected = selected.filter((_, idx) => idx !== i)"
+                        aria-label="@lang('file-manager::file-manager.remove')"
+                        class="text-gray-400 hover:text-gray-600 shrink-0">
+                        <x-file-manager::icons.cross class="w-5 h-5" />
+                    </button>
+                </div>
+            </template>
+        </div>
+    @else
     {{-- Botão + pré-visualização --}}
     <div class="flex items-center gap-3 p-3 border border-dashed border-gray-300 rounded-xl bg-gray-50/50 flex-wrap">
         <button type="button" @click="open = true"
@@ -112,6 +164,7 @@
             </div>
         </template>
     </div>
+    @endif
 
     {{-- Inputs ocultos para o formulário --}}
     @if ($isArrayInput || $allowMultiple)
