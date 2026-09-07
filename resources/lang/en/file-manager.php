@@ -62,6 +62,7 @@ return [
     'drop_hint' => ':formats — up to :max MB',
     'all_formats' => 'All formats',
     'uploading' => 'Uploading…',
+    'change_content' => 'Change content',
     'remove' => 'Remove',
     'library' => 'File library',
     'info' => 'Information',

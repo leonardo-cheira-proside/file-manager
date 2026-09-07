@@ -124,49 +124,66 @@
     @keydown.escape.window="open = false" {{ $attributes->merge(['class' => 'w-full']) }}>
 
     @if ($size === 'large')
-        {{-- Dropzone: clicável (abre modal) e o drop faz upload + seleciona automaticamente. --}}
-        <button type="button" @click="open = true"
+        {{-- Caixa de altura fixa: vazia mostra a dropzone; com conteúdo mostra a
+             media a preencher por dentro (a altura não muda entre estados). --}}
+        <div class="relative w-full h-64 rounded-2xl border-2 border-dashed overflow-hidden transition"
             @dragover.prevent="dragOver = true" @dragleave.prevent="dragOver = false" @drop.prevent="onDrop($event)"
-            class="w-full flex flex-col items-center justify-center gap-2 px-6 py-10 border-2 border-dashed rounded-2xl transition text-center"
-            :class="dragOver ? 'border-proximo-500 bg-proximo-50/60' : 'border-gray-300 bg-white hover:border-proximo-400 hover:bg-gray-50/60'">
-            <svg class="h-9 w-9 text-gray-700" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                    d="M7 18a4 4 0 01-.9-7.9A5 5 0 0116.9 8.6 3.5 3.5 0 0117 18h-1" />
-                <path stroke-linecap="round" stroke-linejoin="round" d="M9.5 14.5l2 2 3.5-4" />
-            </svg>
-            <span class="text-lg font-semibold text-gray-800">@lang('file-manager::file-manager.drop_title')</span>
-            <span class="text-sm text-gray-400">{{ $dropHint }}</span>
-            <span
-                class="mt-3 px-5 py-2 border border-gray-300 rounded-lg text-gray-700 text-sm font-medium">@lang('file-manager::file-manager.browse_file')</span>
-            <span x-show="uploading > 0" x-cloak class="text-xs text-proximo-600 mt-1 animate-pulse">
-                @lang('file-manager::file-manager.uploading')</span>
-        </button>
+            :class="dragOver ? 'border-proximo-500 bg-proximo-50/60' : 'border-gray-300 bg-white'">
 
-        {{-- Selecionados: cards grandes, clicáveis para ver em grande. --}}
-        <div class="mt-3 flex flex-wrap gap-3" x-show="selected.length">
-            <template x-for="(path, i) in selected" :key="path">
-                <div class="relative group" x-show="!isBroken(path)">
-                    <div class="w-28 h-28 rounded-xl overflow-hidden bg-gray-100 border border-gray-200 flex items-center justify-center"
-                        :class="isMedia(path) ? 'cursor-zoom-in' : ''" :title="path" @click="openLight(path)">
-                        <template x-if="isImage(path)"><img :src="preview(path)" class="w-full h-full object-cover"
-                                loading="lazy" @@error="markBroken(path)" alt=""></template>
-                        <template x-if="isVideo(path)"><video :src="preview(path)" class="w-full h-full object-cover"
-                                muted @@error="markBroken(path)"></video></template>
-                        <template x-if="!isMedia(path)">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-gray-400" fill="none"
-                                viewBox="0 0 24 24" stroke="currentColor">
+            {{-- Vazio: dropzone clicável (abre modal). --}}
+            <button type="button" x-show="!selected.length" @click="open = true"
+                class="absolute inset-0 w-full h-full flex flex-col items-center justify-center gap-2 px-6 text-center hover:bg-gray-50/60">
+                <svg class="h-9 w-9 text-gray-700" fill="none" stroke="currentColor" stroke-width="1.5"
+                    viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M7 18a4 4 0 01-.9-7.9A5 5 0 0116.9 8.6 3.5 3.5 0 0117 18h-1" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9.5 14.5l2 2 3.5-4" />
+                </svg>
+                <span class="text-lg font-semibold text-gray-800">@lang('file-manager::file-manager.drop_title')</span>
+                <span class="text-sm text-gray-400">{{ $dropHint }}</span>
+                <span
+                    class="mt-3 px-5 py-2 border border-gray-300 rounded-lg text-gray-700 text-sm font-medium">@lang('file-manager::file-manager.browse_file')</span>
+            </button>
+
+            {{-- Com conteúdo: media a preencher + X (bola vermelha) + "Trocar conteúdo". --}}
+            <template x-if="selected.length && !isBroken(selected[0])">
+                <div class="absolute inset-0 bg-gray-50">
+                    <template x-if="isImage(selected[0])"><img :src="preview(selected[0])"
+                            class="w-full h-full object-contain cursor-zoom-in" @click="openLight(selected[0])"
+                            @@error="markBroken(selected[0])" alt=""></template>
+                    <template x-if="isVideo(selected[0])"><video :src="preview(selected[0])"
+                            class="w-full h-full object-contain cursor-zoom-in" muted @click="openLight(selected[0])"
+                            @@error="markBroken(selected[0])"></video></template>
+                    <template x-if="!isMedia(selected[0])">
+                        <div class="w-full h-full flex flex-col items-center justify-center gap-2 text-gray-400">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
                                     d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                             </svg>
-                        </template>
-                    </div>
-                    <button type="button" @click.stop="selected = selected.filter((_, idx) => idx !== i)"
-                        aria-label="@lang('file-manager::file-manager.remove')"
-                        class="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-white border border-gray-200 shadow flex items-center justify-center text-gray-500 hover:text-red-600">
+                            <span class="text-sm text-gray-600 max-w-[80%] truncate"
+                                x-text="selected[0].split('/').pop()"></span>
+                        </div>
+                    </template>
+
+                    {{-- X para remover (bola vermelha, canto superior direito). --}}
+                    <button type="button" @click.stop="selected = []" aria-label="@lang('file-manager::file-manager.remove')"
+                        class="absolute top-2 right-2 w-8 h-8 rounded-full bg-red-500 text-white flex items-center justify-center shadow-md hover:bg-red-600">
                         <x-file-manager::icons.cross class="w-4 h-4" />
+                    </button>
+
+                    {{-- Trocar conteúdo (abre o modal). --}}
+                    <button type="button" @click="open = true"
+                        class="absolute bottom-3 left-1/2 -translate-x-1/2 px-4 py-2 bg-white/90 backdrop-blur border border-gray-300 rounded-lg text-sm font-medium text-gray-700 shadow hover:bg-white">
+                        @lang('file-manager::file-manager.change_content')
                     </button>
                 </div>
             </template>
+
+            {{-- Overlay de upload (cobre qualquer estado). --}}
+            <div x-show="uploading > 0" x-cloak
+                class="absolute inset-0 z-10 bg-white/70 flex items-center justify-center text-sm text-proximo-600 animate-pulse">
+                @lang('file-manager::file-manager.uploading')</div>
         </div>
     @else
     {{-- Botão + pré-visualização --}}

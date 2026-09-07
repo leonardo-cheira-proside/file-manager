@@ -62,6 +62,7 @@ return [
     'drop_hint' => ':formats — até :max MB',
     'all_formats' => 'Todos os formatos',
     'uploading' => 'A carregar…',
+    'change_content' => 'Trocar conteúdo',
     'remove' => 'Remover',
     'library' => 'Biblioteca de ficheiros',
     'info' => 'Informações',
