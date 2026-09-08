@@ -396,7 +396,12 @@
                         @include('file-manager::livewire.partials.grid-item', ['file' => $file])
                     @endforeach
 
-                    {{-- Placeholder por ficheiro em upload: nome + loader no lugar da miniatura. --}}
+                    {{-- Placeholder por ficheiro em upload: nome + loader no lugar da
+                         miniatura. Estes nós são gerados pelo Alpine e não existem no
+                         HTML do servidor: sem o wire:ignore, o morph do Livewire deixa
+                         órfãos para trás ao mudar de pasta (uma caixa a mais, sem nome).
+                         O "contents" faz o invólucro desaparecer do layout da grelha. --}}
+                    <div wire:ignore class="contents">
                     <template x-for="p in pendingHere()" :key="p.id">
                         <div
                             class="relative w-40 p-4 border border-dashed border-proximo-300 bg-white/70 rounded-xl flex flex-col items-center justify-center text-center">
@@ -407,6 +412,7 @@
                                 :title="p.name"></p>
                         </div>
                     </template>
+                    </div>
                 </div>
 
                 <table x-show="view === 'list' && (@js($hasItems) || pendingHere().length > 0)" x-cloak
@@ -430,6 +436,8 @@
                             @foreach ($items as $file)
                                 @include('file-manager::livewire.partials.list-item', ['file' => $file])
                             @endforeach
+                        </tbody>
+                        <tbody wire:ignore class="divide-y divide-gray-100">
                             <template x-for="p in pendingHere()" :key="p.id">
                                 <tr class="text-gray-500">
                                     <td class="px-3 py-2 text-center">
