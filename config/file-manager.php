@@ -92,6 +92,9 @@ return [
         'enabled' => env('FILE_MANAGER_ROUTE', true),
         'prefix' => env('FILE_MANAGER_ROUTE_PREFIX', 'file-manager'),
         'middleware' => ['web', 'auth'],
+        // Rota de media (ver imagens/vídeos/ficheiros). Pública por omissão:
+        // ver conteúdo não exige auth; só entrar no gestor e alterar exige.
+        'media_middleware' => ['web'],
         // Layout Blade que envolve a página full-page (deve ter @yield('content')
         // ou um slot $slot). Por omissão usa o layout próprio do package.
         'layout' => null,

@@ -89,12 +89,12 @@ class FileManagerComponentTest extends TestCase
         $this->assertTrue(Storage::disk('fm-test')->exists('conteudos/drop.png'));
     }
 
-    public function test_media_route_serves_by_clean_path(): void
+    public function test_media_route_is_public_and_serves_by_clean_path(): void
     {
         Storage::disk('fm-test')->put('conteudos/sub/pic.png', 'x');
 
-        $res = $this->actingAs(new \Illuminate\Foundation\Auth\User())
-            ->get(url('file-manager/media/conteudos/sub/pic.png'));
+        // Sem autenticação: ver conteúdo é público.
+        $res = $this->get(url('file-manager/media/conteudos/sub/pic.png'));
 
         $res->assertOk();
     }
