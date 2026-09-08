@@ -62,6 +62,7 @@ class FileManagerComponentTest extends TestCase
     {
         Livewire::test(FileManager::class)
             ->set('uploads', [UploadedFile::fake()->image('photo.png')])
+            ->call('storeUploads', 'conteudos')
             ->assertSee('photo.png');
 
         $this->assertTrue(Storage::disk('fm-test')->exists('conteudos/photo.png'));
@@ -152,6 +153,7 @@ class FileManagerComponentTest extends TestCase
             ->call('createFolder', 'Destino', 'conteudos')
             ->call('open', 'conteudos/Destino')
             ->set('uploads', [UploadedFile::fake()->image('novo.png')])
+            ->call('storeUploads', 'conteudos/Destino')
             ->assertOk();
 
         $this->assertTrue(Storage::disk('fm-test')->exists('conteudos/Destino/novo.png'));
@@ -175,5 +177,54 @@ class FileManagerComponentTest extends TestCase
 
         $this->assertSame('folder', $files[0]['type']);
         $this->assertNull($files[0]['url']);
+    }
+
+    public function test_upload_lands_in_the_folder_it_started_in(): void
+    {
+        $c = Livewire::test(FileManager::class)
+            ->call('createFolder', 'Origem', 'conteudos')
+            ->call('createFolder', 'Outra', 'conteudos')
+            ->call('open', 'conteudos/Origem')
+            ->set('uploads', [UploadedFile::fake()->image('foto.png')]);
+
+        // O utilizador troca de pasta antes de o upload ser guardado.
+        $c->call('open', 'conteudos/Outra')
+            ->call('storeUploads', 'conteudos/Origem');
+
+        $this->assertTrue(Storage::disk('fm-test')->exists('conteudos/Origem/foto.png'));
+        $this->assertFalse(Storage::disk('fm-test')->exists('conteudos/Outra/foto.png'));
+    }
+
+    public function test_upload_event_carries_the_originating_folder(): void
+    {
+        Livewire::test(FileManager::class)
+            ->call('createFolder', 'Origem', 'conteudos')
+            ->call('open', 'conteudos/Origem')
+            ->set('uploads', [UploadedFile::fake()->image('foto.png')])
+            ->call('open', 'conteudos')
+            ->call('storeUploads', 'conteudos/Origem')
+            ->assertDispatched('file-manager-uploaded', path: 'conteudos/Origem');
+    }
+
+    public function test_upload_to_a_forbidden_folder_falls_back_to_root(): void
+    {
+        Storage::disk('fm-test')->put('conteudos/vitima/x.txt', 'x');
+        config(['file-manager.root_resolver' => fn () => 'conteudos/atacante']);
+
+        Livewire::test(FileManager::class)
+            ->set('uploads', [UploadedFile::fake()->image('foto.png')])
+            ->call('storeUploads', 'conteudos/vitima');
+
+        $this->assertTrue(Storage::disk('fm-test')->exists('conteudos/atacante/foto.png'));
+        $this->assertFalse(Storage::disk('fm-test')->exists('conteudos/vitima/foto.png'));
+    }
+
+    public function test_upload_into_trash_is_refused(): void
+    {
+        $c = Livewire::test(FileManager::class)
+            ->set('uploads', [UploadedFile::fake()->image('foto.png')])
+            ->call('storeUploads', 'apagados/conteudos');
+
+        $this->assertFalse(Storage::disk('fm-test')->exists('apagados/conteudos/foto.png'));
     }
 }

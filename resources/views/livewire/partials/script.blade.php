@@ -309,9 +309,12 @@
                 }));
                 this.pending.push(...batch);
                 const done = () => { this.pending = this.pending.filter((p) => !batch.includes(p)); };
-                // O progresso já não desenha nada; serve só de sinal de vida
-                // para o varredor acima saber que o upload ainda está vivo.
-                this.$wire.uploadMultiple('uploads', files, done, done, () => {
+                this.$wire.uploadMultiple('uploads', files, () => {
+                    // A pasta vai explícita: o servidor não pode adivinhá-la
+                    // pelo estado actual, que já pode ser outro.
+                    batch.forEach((b) => { b.at = Date.now(); });
+                    this.$wire.storeUploads(folder);
+                }, done, () => {
                     const now = Date.now();
                     batch.forEach((b) => { b.at = now; });
                 });

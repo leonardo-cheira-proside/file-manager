@@ -363,10 +363,36 @@ class FileManager extends Component
         $this->error = '';
     }
 
-    /** Lifecycle hook: dispara quando o upload (wire:model) termina. */
+    /**
+     * Lifecycle hook do wire:model. Não guarda nada: quem decide o destino é
+     * o cliente, via storeUploads(), com a pasta que estava aberta quando o
+     * upload arrancou. Decidir aqui usaria $this->path no momento em que o
+     * upload TERMINA — trocar de pasta a meio mandava o ficheiro para o
+     * sítio errado e deixava o placeholder da pasta de origem encravado.
+     */
     public function updatedUploads(): void
     {
         if ($this->inTrash) {
+            $this->uploads = [];
+        }
+    }
+
+    /** Guarda os ficheiros já carregados na pasta onde o upload começou. */
+    public function storeUploads(?string $folder = null): void
+    {
+        if (empty($this->uploads)) {
+            return;
+        }
+
+        $service = $this->service();
+
+        try {
+            $target = $service->guard()->normalize($folder ?: $this->path);
+        } catch (\Throwable $e) {
+            $target = $service->root();
+        }
+
+        if ($service->guard()->isTrash($target)) {
             $this->uploads = [];
 
             return;
@@ -381,13 +407,13 @@ class FileManager extends Component
         $uploads = $this->uploads;
         $this->uploads = [];
 
-        $this->guarded(function () use ($uploads) {
+        $this->guarded(function () use ($uploads, $target, $service) {
             foreach ($uploads as $file) {
-                $this->service()->upload($file, $this->path);
+                $service->upload($file, $target);
             }
         });
 
-        $this->dispatch('file-manager-uploaded', path: $this->path);
+        $this->dispatch('file-manager-uploaded', path: $target);
     }
 
     // ===========================================================
