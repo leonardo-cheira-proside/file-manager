@@ -405,10 +405,6 @@
                             </div>
                             <p class="text-[11px] mt-2 truncate font-medium text-gray-600 w-full px-1" x-text="p.name"
                                 :title="p.name"></p>
-                            <div class="w-full h-1 mt-1.5 bg-gray-200 rounded-full overflow-hidden">
-                                <div class="h-full bg-proximo-500 transition-all duration-200"
-                                    :style="`width:${p.progress || 0}%`"></div>
-                            </div>
                         </div>
                     </template>
                 </div>
@@ -440,7 +436,7 @@
                                         <x-file-manager::icons.spinner class="h-4 w-4 text-proximo-600 inline-block" />
                                     </td>
                                     <td class="px-4 py-2 truncate" x-text="p.name"></td>
-                                    <td class="px-3 py-2 text-center" x-text="(p.progress || 0) + '%'"></td>
+                                    <td class="px-3 py-2 text-center">—</td>
                                     <td class="px-3 py-2 text-center">@lang('file-manager::file-manager.uploading_file')</td>
                                     <td class="px-4 py-2 text-right">—</td>
                                     @if ($this->inTrash)
@@ -462,20 +458,6 @@
         </div>
     </div>
 
-    {{-- Barra de progresso de upload. "absolute" (e não "fixed") para ficar
-         ancorada ao .fm-root — dentro do modal do picker, "fixed" colava-a ao
-         canto da janela, fora do gestor. --}}
-    <div x-show="pendingHere().length > 0" x-cloak
-        class="absolute bottom-6 right-6 z-40 w-44 rounded-lg bg-white/95 border border-gray-200 shadow-lg p-2">
-        <div class="flex items-center gap-2 mb-1.5">
-            <x-file-manager::icons.spinner class="h-3.5 w-3.5 text-proximo-600" />
-            <span class="text-[11px] text-gray-600 truncate"
-                x-text="pendingHere().length + ' · ' + uploadProgress() + '%'"></span>
-        </div>
-        <div class="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
-            <div class="h-full bg-proximo-500 transition-all duration-200" :style="`width:${uploadProgress()}%`"></div>
-        </div>
-    </div>
 
     {{-- Erro da última operação --}}
     @if ($this->error !== '')

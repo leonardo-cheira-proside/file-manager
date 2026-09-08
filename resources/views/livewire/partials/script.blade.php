@@ -41,6 +41,26 @@
                 this.$root.addEventListener('fm-modal', (e) => this.openModal(e.detail));
                 // Ao mudar de pasta, desseleciona tudo e fecha o menu.
                 this.$wire.on('fm-navigated', () => { this.selected = []; this.menu.open = false; });
+                // Rede de segurança: o servidor confirma que o ficheiro chegou.
+                // Sem isto o placeholder podia sobrepor-se ao item já listado.
+                this.$wire.on('file-manager-uploaded', (e) => {
+                    const folder = (e && e.path) || (e && e[0] && e[0].path);
+                    this.pending = folder
+                        ? this.pending.filter((p) => p.path !== folder)
+                        : [];
+                });
+                // Sair a meio aborta o upload: o pedido morre com a página.
+                this.onLeave = (ev) => {
+                    if (!this.pending.length) return;
+                    ev.preventDefault();
+                    ev.returnValue = '';
+                    return '';
+                };
+                window.addEventListener('beforeunload', this.onLeave);
+            },
+
+            destroy() {
+                window.removeEventListener('beforeunload', this.onLeave);
             },
 
             // ---------- Seleção (cliente) ----------
@@ -271,24 +291,15 @@
                     id: (crypto.randomUUID ? crypto.randomUUID() : String(Math.random())),
                     name: f.name,
                     path: folder,
-                    progress: 0,
                 }));
                 this.pending.push(...batch);
                 const done = () => { this.pending = this.pending.filter((p) => !batch.includes(p)); };
-                this.$wire.uploadMultiple('uploads', files, done, done, (e) => {
-                    const pct = (e && e.detail && e.detail.progress) || 0;
-                    batch.forEach((b) => { b.progress = pct; });
-                });
+                this.$wire.uploadMultiple('uploads', files, done, done, () => {});
             },
             // O indicador de upload pertence à pasta de destino: navegar para
             // outra pasta não arrasta os placeholders atrás.
             pendingHere() {
                 return this.pending.filter((p) => p.path === this.$wire.path);
-            },
-            uploadProgress() {
-                const here = this.pendingHere();
-                if (!here.length) return 0;
-                return Math.round(here.reduce((a, p) => a + (p.progress || 0), 0) / here.length);
             },
 
             // ---------- Copiar URL ----------

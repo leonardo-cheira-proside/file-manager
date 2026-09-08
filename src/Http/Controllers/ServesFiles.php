@@ -36,7 +36,10 @@ trait ServesFiles
                 $response = response()->file($abs, $this->headers());
                 $response->setContentDisposition($disposition, $name, Str::ascii($name));
                 $response->setAutoLastModified();
-                $response->setAutoEtag();
+                // setAutoEtag() faz hash_file() — lê o ficheiro inteiro a cada
+                // pedido. Num vídeo, que faz vários pedidos com Range, isso
+                // multiplica-se. size+mtime identifica a versão na mesma.
+                $response->setEtag(substr(md5($path.'|'.filesize($abs).'|'.filemtime($abs)), 0, 32));
                 $response->isNotModified($request);
 
                 return $response;

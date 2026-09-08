@@ -387,7 +387,7 @@ class FileManager extends Component
             }
         });
 
-        $this->dispatch('file-manager-uploaded');
+        $this->dispatch('file-manager-uploaded', path: $this->path);
     }
 
     // ===========================================================

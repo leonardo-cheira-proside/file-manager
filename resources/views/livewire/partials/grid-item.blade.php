@@ -39,8 +39,8 @@
                 <img src="{{ $file['url'] }}" loading="lazy" class="max-h-full max-w-full object-contain rounded"
                     draggable="false" alt="{{ $file['name'] }}" x-on:load="markLoaded()" x-on:error="l = true">
             @elseif ($file['type'] === 'video')
-                <video src="{{ $file['url'] }}#t=0.5" preload="metadata" muted
-                    class="max-h-full max-w-full object-cover rounded" x-on:loadedmetadata="markLoaded()"
+                <video src="{{ $file['url'] }}#t=0.5" preload="none" muted playsinline
+                    class="max-h-full max-w-full object-cover rounded"
                     x-on:error="l = true"></video>
             @else
                 @include('file-manager::livewire.partials.file-icon', ['file' => $file, 'class' => 'h-14 w-14'])
