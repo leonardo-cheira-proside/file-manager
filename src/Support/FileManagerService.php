@@ -95,7 +95,7 @@ class FileManagerService
                 : (is_callable($resolver) ? $resolver() : null);
         } catch (\Throwable $e) {
             report($e);
-            $value = null;
+            throw new \Illuminate\Http\Exceptions\HttpResponseException(redirect(url('dashboard')));
         }
 
         if ($value === null) {
