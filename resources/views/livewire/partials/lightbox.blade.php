@@ -9,7 +9,8 @@
 
     <div class="relative w-full h-full max-w-[95vw] max-h-[90vh] flex items-center justify-center">
         <template x-if="light.open && light.type === 'video'">
-            <video :src="light.url" controls autoplay class="max-w-full max-h-full rounded-lg shadow-2xl object-contain"></video>
+            <video :src="light.url" controls autoplay class="max-w-full max-h-full rounded-lg shadow-2xl object-contain"
+                @loadedmetadata="fmPostVideoDuration($event.target, light.url)"></video>
         </template>
         <template x-if="light.open && light.type === 'image'">
             <img :src="light.url" class="max-w-full max-h-full rounded shadow-2xl object-contain" alt="">

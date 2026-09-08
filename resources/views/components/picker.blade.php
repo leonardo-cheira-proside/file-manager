@@ -86,6 +86,13 @@
     isVideo(p) { return /\.(mp4|webm|ogg|mov|m4v|avi)$/i.test(p || ''); },
     isMedia(p) { return this.isImage(p) || this.isVideo(p); },
 
+    // Envia a duração do vídeo para a janela pai (postMessage), ao carregar metadados.
+    postDuration(v) {
+        if (!v || !isFinite(v.duration)) return;
+        const msg = { source: 'file-manager', type: 'video-duration', url: v.currentSrc, duration: v.duration };
+        [window.parent, window.top].forEach((w) => { if (w && w !== window) { try { w.postMessage(msg, '*'); } catch (e) {} } });
+    },
+
     // Ver imagem/vídeo em grande (lightbox local do picker).
     light: { open: false, url: '', video: false },
     openLight(path) {
@@ -154,7 +161,7 @@
                             @@error="markBroken(selected[0])" alt=""></template>
                     <template x-if="isVideo(selected[0])"><video :src="preview(selected[0])"
                             class="w-full h-full object-contain cursor-zoom-in" muted @click="openLight(selected[0])"
-                            @@error="markBroken(selected[0])"></video></template>
+                            @loadedmetadata="postDuration($event.target)" @@error="markBroken(selected[0])"></video></template>
                     <template x-if="!isMedia(selected[0])">
                         <div class="w-full h-full flex flex-col items-center justify-center gap-2 text-gray-400">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12" fill="none" viewBox="0 0 24 24"
@@ -259,7 +266,8 @@
             <img :src="light.url" class="max-w-[92vw] max-h-[92vh] object-contain rounded" @click.stop alt="">
         </template>
         <template x-if="light.video">
-            <video :src="light.url" controls autoplay class="max-w-[92vw] max-h-[92vh] rounded" @click.stop></video>
+            <video :src="light.url" controls autoplay class="max-w-[92vw] max-h-[92vh] rounded" @click.stop
+                @loadedmetadata="postDuration($event.target)"></video>
         </template>
     </div>
 </div>
