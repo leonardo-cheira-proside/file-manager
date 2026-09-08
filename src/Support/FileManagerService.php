@@ -4,8 +4,11 @@ namespace Proside\FileManager\Support;
 
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
+use League\Flysystem\StorageAttributes;
 
 /**
  * Camada de domínio do File Manager: todas as operações de filesystem
@@ -44,7 +47,6 @@ class FileManagerService
             $this->ensureExists($root);
         }
         $this->guard = new PathGuard($this->effectiveRoots, $config['trash']);
-        $this->ensureExists($config['trash']);
     }
 
     public function guard(): PathGuard
@@ -66,6 +68,12 @@ class FileManagerService
     public function roots(): array
     {
         return $this->effectiveRoots;
+    }
+
+    /** Ramo do lixo do utilizador (espelha a raiz principal). */
+    public function trashRoot(): string
+    {
+        return $this->guard->trashRoot();
     }
 
     public function isScoped(): bool
@@ -95,7 +103,11 @@ class FileManagerService
                 : (is_callable($resolver) ? $resolver() : null);
         } catch (\Throwable $e) {
             report($e);
-            throw new \Illuminate\Http\Exceptions\HttpResponseException(redirect(url('dashboard')));
+            if (request()->expectsJson()) {
+                abort(401);
+            }
+            $target = config('file-manager.route.redirect_on_error', 'dashboard');
+            throw new \Illuminate\Http\Exceptions\HttpResponseException(redirect(url($target)));
         }
 
         if ($value === null) {
@@ -107,11 +119,9 @@ class FileManagerService
         foreach ($candidates as $candidate) {
             $candidate = trim(str_replace('\\', '/', (string) $candidate), '/');
 
-            // Vazio ou a própria raiz da config => acesso total (sem scoping).
             if ($candidate === '' || $candidate === $config['root']) {
                 return [$config['root']];
             }
-            // Fora da raiz da config => ignora (não escala privilégios).
             if (!str_starts_with($candidate, $config['root'] . '/')) {
                 continue;
             }
@@ -138,56 +148,179 @@ class FileManagerService
      * @param  string  $filter  all|folders|images|videos|no-folder|az|za
      * @return array<int,array<string,mixed>>
      */
-    public function listing(string $path, string $filter = 'all'): array
+    public function listing(string $path, string $filter = 'all', string $sort = 'az'): array
     {
         $path = $this->guard->normalize($path);
+        $inTrash = $this->guard->isTrash($path);
 
-        $folders = collect($this->disk->directories($path))
-            ->map(fn($dir) => $this->folderEntry($dir))
-            ->values();
+        [$folders, $files] = $this->scan($path, $inTrash);
 
-        $files = collect($this->disk->files($path))
-            ->reject(fn($file) => Str::endsWith($file, '.meta.json'))
-            ->map(fn($file) => $this->fileEntry($file))
-            ->values();
-
-        // images/videos/no-folder escondem as pastas na grelha/lista; a
-        // navegação continua possível pela árvore lateral (sidebar).
         $result = match ($filter) {
             'folders' => $folders,
-            'images' => $files
-                ->where('type', 'image')
-                ->values(),
-            'videos' => $files
-                ->where('type', 'video')
-                ->values(),
+            'images' => array_values(array_filter($files, fn ($f) => $f['type'] === 'image')),
+            'videos' => array_values(array_filter($files, fn ($f) => $f['type'] === 'video')),
             'no-folder' => $files,
-            default => $folders->concat($files),
+            default => [...$folders, ...$files],
         };
 
-        // Scoping: no lixo, um utilizador confinado só vê o que apagou de
-        // dentro de alguma das suas raízes (via originalPath na meta).
-        if ($this->scoped && $this->guard->isTrash($path)) {
-            $result = $result->filter(function ($entry) {
-                $origin = $this->readMeta($entry['path'])['originalPath'] ?? '';
+        usort($result, fn ($a, $b) => $this->compareEntries($a, $b, $sort));
 
-                foreach ($this->effectiveRoots as $root) {
-                    if ($origin === $root || str_starts_with($origin, $root . '/')) {
-                        return true;
-                    }
-                }
+        return $result;
+    }
 
-                return false;
-            })->values();
+    /**
+     * Lê uma pasta numa única passagem, aproveitando os metadados que o
+     * adaptador já devolve (evita size()/lastModified() por entrada — em
+     * discos remotos como o S3 isso seriam duas chamadas API por ficheiro).
+     *
+     * @return array{0:array<int,array<string,mixed>>,1:array<int,array<string,mixed>>}
+     */
+    protected function scan(string $path, bool $inTrash): array
+    {
+        $folders = [];
+        $files = [];
+
+        foreach ($this->attributes($path) as $item) {
+            $itemPath = $item->path();
+
+            if ($item->isDir()) {
+                $folders[] = $this->folderEntry($itemPath, $item->lastModified(), $inTrash);
+
+                continue;
+            }
+
+            if ($inTrash && Str::endsWith($itemPath, '.meta.json')) {
+                continue;
+            }
+
+            $files[] = $this->fileEntry($itemPath, $item->fileSize(), $item->lastModified(), $inTrash);
         }
 
-        $result = $result->sort(function ($a, $b) use ($filter) {
-            $cmp = strcasecmp($a['name'], $b['name']);
+        return [$folders, $files];
+    }
 
-            return $filter === 'za' ? -$cmp : $cmp;
-        })->values();
+    /**
+     * Metadados das entradas diretas de uma pasta. Usa o Flysystem quando
+     * disponível; caso contrário recorre às chamadas individuais do disco.
+     *
+     * @return iterable<int,StorageAttributes>
+     */
+    protected function attributes(string $path): iterable
+    {
+        if (method_exists($this->disk, 'getDriver')) {
+            try {
+                return iterator_to_array($this->disk->getDriver()->listContents($path, false), false);
+            } catch (\Throwable $e) {
+                // adaptador sem suporte -> fallback abaixo
+            }
+        }
 
-        return $result->all();
+        $out = [];
+        foreach ($this->disk->directories($path) as $dir) {
+            $out[] = new \League\Flysystem\DirectoryAttributes($dir, null, $this->rawModified($dir));
+        }
+        foreach ($this->disk->files($path) as $file) {
+            $out[] = new \League\Flysystem\FileAttributes(
+                $file, $this->rawSize($file), null, $this->rawModified($file)
+            );
+        }
+
+        return $out;
+    }
+
+    protected function compareEntries(array $a, array $b, string $sort): int
+    {
+        return match ($sort) {
+            'za' => strcasecmp($b['name'], $a['name']),
+            'newest' => strcmp((string) ($b['modified'] ?? ''), (string) ($a['modified'] ?? '')),
+            'oldest' => strcmp((string) ($a['modified'] ?? ''), (string) ($b['modified'] ?? '')),
+            'largest' => ($b['size'] ?? 0) <=> ($a['size'] ?? 0),
+            'smallest' => ($a['size'] ?? 0) <=> ($b['size'] ?? 0),
+            default => strcasecmp($a['name'], $b['name']),
+        };
+    }
+
+    /**
+     * Pesquisa por nome em todas as raízes do utilizador. O varrimento
+     * recursivo é guardado em cache por raiz durante alguns segundos, para
+     * que escrever na caixa de pesquisa não relance a travessia a cada tecla.
+     */
+    public function search(string $term, string $sort = 'az'): array
+    {
+        $term = mb_strtolower(trim($term));
+        if ($term === '') {
+            return [];
+        }
+
+        $entries = [];
+        foreach ($this->index() as $entry) {
+            if (str_contains(mb_strtolower($entry['name']), $term)) {
+                $entries[] = $entry;
+            }
+        }
+
+        usort($entries, fn ($a, $b) => $this->compareEntries($a, $b, $sort));
+
+        return array_slice($entries, 0, 500);
+    }
+
+    /**
+     * Índice plano (caminho + nome + tipo) de todas as raízes do utilizador.
+     *
+     * @return array<int,array<string,mixed>>
+     */
+    protected function index(): array
+    {
+        $ttl = (int) config('file-manager.search.cache_seconds', 10);
+        $key = 'file-manager:index:'.md5(implode('|', $this->effectiveRoots));
+
+        $build = function (): array {
+            $out = [];
+            foreach ($this->effectiveRoots as $root) {
+                foreach ($this->disk->allFiles($root) as $file) {
+                    $out[] = $this->fileEntry($file, $this->rawSize($file), $this->rawModified($file), false);
+                }
+                foreach ($this->disk->allDirectories($root) as $dir) {
+                    $out[] = $this->folderEntry($dir, $this->rawModified($dir), false);
+                }
+            }
+
+            return $out;
+        };
+
+        return $ttl > 0 ? cache()->remember($key, $ttl, $build) : $build();
+    }
+
+    protected function forgetIndex(): void
+    {
+        cache()->forget('file-manager:index:'.md5(implode('|', $this->effectiveRoots)));
+    }
+
+    public function duplicate(array $paths): array
+    {
+        $out = [];
+        foreach ($paths as $path) {
+            try {
+                $path = $this->guard->normalize($path);
+            } catch (\Throwable $e) {
+                continue;
+            }
+            if (! $this->exists($path)) {
+                continue;
+            }
+            $target = $this->uniquePath($path);
+            if ($this->isDirectory($path)) {
+                $this->copyDirectory($path, $target);
+            } else {
+                $this->disk->copy($path, $target);
+            }
+            $out[] = $target;
+        }
+
+        $this->audit('duplicate', ['paths' => $paths, 'created' => $out]);
+        $this->forgetIndex();
+
+        return $out;
     }
 
     /**
@@ -232,6 +365,9 @@ class FileManagerService
         $target = $this->uniqueDir($parent . '/' . $name);
         $this->disk->makeDirectory($target);
 
+        $this->audit('create_folder', ['path' => $target]);
+        $this->forgetIndex();
+
         return $target;
     }
 
@@ -243,7 +379,6 @@ class FileManagerService
         $dir = $this->dirname($path);
         $isDir = $this->isDirectory($path);
 
-        // Preserva a extensão original em ficheiros, tal como o FM antigo.
         if (!$isDir) {
             $ext = pathinfo($path, PATHINFO_EXTENSION);
             if ($ext !== '' && !Str::endsWith(Str::lower($newName), '.' . Str::lower($ext))) {
@@ -257,7 +392,11 @@ class FileManagerService
             return $path;
         }
 
-        $this->disk->move($path, $this->uniquePath($target));
+        $target = $this->uniquePath($target);
+        $this->disk->move($path, $target);
+
+        $this->audit('rename', ['from' => $path, 'to' => $target]);
+        $this->forgetIndex();
 
         return $target;
     }
@@ -273,26 +412,40 @@ class FileManagerService
         $to = $this->guard->normalize($to);
         $results = [];
 
+        if ($this->disk->fileExists($to)) {
+            foreach ($from as $item) {
+                $results[] = ['from' => $item, 'success' => false, 'message' => 'Destino inválido'];
+            }
+
+            return $results;
+        }
+
         foreach ($from as $item) {
             try {
                 $item = $this->guard->normalize($item);
             } catch (\Throwable $e) {
-                $results[] = ['from' => $item, 'success' => false, 'message' => $e->getMessage()];
+                $results[] = ['from' => $item, 'success' => false, 'message' => 'Caminho inválido'];
 
                 continue;
             }
 
-            // Não mover para dentro de si próprio nem para a pasta atual.
             if ($item === $to || Str::startsWith($to, $item . '/') || $this->dirname($item) === $to) {
                 $results[] = ['from' => $item, 'success' => false, 'message' => 'Destino inválido'];
 
                 continue;
             }
 
-            $target = $this->uniquePath($to . '/' . basename($item));
-            $this->disk->move($item, $target);
-            $results[] = ['from' => $item, 'success' => true, 'to' => $target];
+            try {
+                $target = $this->uniquePath($to . '/' . basename($item));
+                $this->disk->move($item, $target);
+                $results[] = ['from' => $item, 'success' => true, 'to' => $target];
+                $this->audit('move', ['from' => $item, 'to' => $target]);
+            } catch (\Throwable $e) {
+                $results[] = ['from' => $item, 'success' => false, 'message' => 'Não foi possível mover'];
+            }
         }
+
+        $this->forgetIndex();
 
         return $results;
     }
@@ -308,11 +461,19 @@ class FileManagerService
         $to = $this->guard->normalize($to);
         $results = [];
 
+        if ($this->disk->fileExists($to)) {
+            foreach ($from as $item) {
+                $results[] = ['from' => $item, 'success' => false, 'message' => 'Destino inválido'];
+            }
+
+            return $results;
+        }
+
         foreach ($from as $item) {
             try {
                 $item = $this->guard->normalize($item);
             } catch (\Throwable $e) {
-                $results[] = ['from' => $item, 'success' => false, 'message' => $e->getMessage()];
+                $results[] = ['from' => $item, 'success' => false, 'message' => 'Caminho inválido'];
 
                 continue;
             }
@@ -323,14 +484,21 @@ class FileManagerService
                 continue;
             }
 
-            $target = $this->uniquePath($to . '/' . basename($item));
-            if ($this->isDirectory($item)) {
-                $this->copyDirectory($item, $target);
-            } else {
-                $this->disk->copy($item, $target);
+            try {
+                $target = $this->uniquePath($to . '/' . basename($item));
+                if ($this->isDirectory($item)) {
+                    $this->copyDirectory($item, $target);
+                } else {
+                    $this->disk->copy($item, $target);
+                }
+                $results[] = ['from' => $item, 'success' => true, 'to' => $target];
+                $this->audit('copy', ['from' => $item, 'to' => $target]);
+            } catch (\Throwable $e) {
+                $results[] = ['from' => $item, 'success' => false, 'message' => 'Não foi possível copiar'];
             }
-            $results[] = ['from' => $item, 'success' => true, 'to' => $target];
         }
+
+        $this->forgetIndex();
 
         return $results;
     }
@@ -357,76 +525,135 @@ class FileManagerService
         $name = $this->guard->sanitizeName($file->getClientOriginalName());
 
         $target = $this->uniquePath($path . '/' . $name);
+        for ($i = 0; $i < 5 && $this->disk->fileExists($target); $i++) {
+            $target = $this->uniquePath($path . '/' . $name);
+        }
+
         $this->disk->putFileAs($path, $file, basename($target));
+
+        $this->audit('upload', ['path' => $target, 'size' => $file->getSize()]);
+        $this->forgetIndex();
 
         return $target;
     }
 
     /**
-     * Move itens para o lixo, registando o momento de expiração num
-     * sidecar ".meta.json" (compatível com qualquer disco).
+     * Move itens para o lixo. O lixo espelha a árvore de origem
+     * ("conteudos/a/x.png" -> "apagados/conteudos/a/x.png"), o que confina
+     * cada utilizador ao seu próprio ramo e torna o restauro trivial.
+     * Um sidecar ".meta.json" guarda o momento de expiração.
      *
      * @param  array<int,string>  $paths
+     * @return array<int,array<string,mixed>>
      */
-    public function trash(array $paths): void
+    public function trash(array $paths): array
     {
         $expireAt = now()->addDays((int) config('file-manager.trash_retention_days'))->timestamp;
+        $results = [];
 
         foreach ($paths as $path) {
-            $path = $this->guard->normalize($path);
-            if ($this->guard->isTrash($path) || !$this->exists($path)) {
-                continue;
+            try {
+                $path = $this->guard->normalize($path);
+
+                if ($this->guard->isTrash($path) || !$this->exists($path)) {
+                    $results[] = ['from' => $path, 'success' => false, 'message' => 'Item indisponível'];
+
+                    continue;
+                }
+
+                $target = $this->uniquePath($this->guard->toTrash($path));
+                $this->ensureExists($this->dirname($target));
+                $this->disk->move($path, $target);
+
+                $this->disk->put($target . '.meta.json', json_encode([
+                    'deleteAt' => $expireAt * 1000,
+                    'originalPath' => $path,
+                ], JSON_PRETTY_PRINT));
+
+                $results[] = ['from' => $path, 'success' => true, 'to' => $target];
+                $this->audit('trash', ['from' => $path, 'to' => $target]);
+            } catch (\Throwable $e) {
+                $results[] = ['from' => $path, 'success' => false, 'message' => 'Não foi possível eliminar'];
             }
-
-            $target = $this->uniquePath($this->guard->trash() . '/' . basename($path));
-            $this->disk->move($path, $target);
-
-            $this->disk->put($target . '.meta.json', json_encode([
-                'deleteAt' => $expireAt * 1000, // ms (compat com o FM antigo)
-                'originalPath' => $path,
-            ], JSON_PRETTY_PRINT));
         }
+
+        $this->forgetIndex();
+
+        return $results;
     }
 
     /**
-     * Restaura itens do lixo para a sua localização original (melhoria
-     * face ao FM antigo, que não tinha restauro).
+     * Restaura itens do lixo para a sua localização original. O destino vem
+     * do próprio caminho no lixo (espelho da árvore), e é revalidado pelo
+     * PathGuard — um item não pode ser restaurado para fora das raízes.
      *
      * @param  array<int,string>  $paths
+     * @return array<int,array<string,mixed>>
      */
-    public function restore(array $paths): void
+    public function restore(array $paths): array
     {
+        $results = [];
+
         foreach ($paths as $path) {
-            $path = $this->guard->normalize($path);
-            if (!$this->guard->isTrash($path) || !$this->exists($path)) {
-                continue;
+            try {
+                $path = $this->guard->normalize($path);
+
+                if (!$this->guard->isTrash($path) || !$this->exists($path)) {
+                    $results[] = ['from' => $path, 'success' => false, 'message' => 'Item indisponível'];
+
+                    continue;
+                }
+
+                $original = $this->guard->normalize($this->guard->fromTrash($path));
+
+                $this->ensureExists($this->dirname($original));
+                $target = $this->uniquePath($original);
+                $this->disk->move($path, $target);
+                $this->disk->delete($path . '.meta.json');
+
+                $results[] = ['from' => $path, 'success' => true, 'to' => $target];
+                $this->audit('restore', ['from' => $path, 'to' => $target]);
+            } catch (\Throwable $e) {
+                $results[] = ['from' => $path, 'success' => false, 'message' => 'Não foi possível restaurar'];
             }
-
-            $meta = $this->readMeta($path);
-            $original = $meta['originalPath'] ?? ($this->guard->root() . '/' . basename($path));
-            $original = $this->guard->normalize($this->dirname($original)) . '/' . basename($original);
-
-            $this->ensureExists($this->dirname($original));
-            $this->disk->move($path, $this->uniquePath($original));
-            $this->disk->delete($path . '.meta.json');
         }
+
+        $this->forgetIndex();
+
+        return $results;
     }
 
     /**
-     * Elimina definitivamente itens (apenas dentro do lixo).
+     * Elimina definitivamente itens (apenas dentro do lixo do utilizador).
      *
      * @param  array<int,string>  $paths
+     * @return array<int,array<string,mixed>>
      */
-    public function deleteForever(array $paths): void
+    public function deleteForever(array $paths): array
     {
+        $results = [];
+
         foreach ($paths as $path) {
-            $path = $this->guard->normalize($path);
-            if (!$this->guard->isTrash($path)) {
-                continue;
+            try {
+                $path = $this->guard->normalize($path);
+
+                if (!$this->guard->isTrash($path)) {
+                    $results[] = ['from' => $path, 'success' => false, 'message' => 'Item indisponível'];
+
+                    continue;
+                }
+
+                $this->destroy($path);
+                $this->disk->delete($path . '.meta.json');
+
+                $results[] = ['from' => $path, 'success' => true];
+                $this->audit('delete_forever', ['path' => $path]);
+            } catch (\Throwable $e) {
+                $results[] = ['from' => $path, 'success' => false, 'message' => 'Não foi possível eliminar'];
             }
-            $this->destroy($path);
-            $this->disk->delete($path . '.meta.json');
         }
+
+        return $results;
     }
 
     /** Remove do lixo todos os itens cujo prazo expirou. Devolve nº removidos. */
@@ -436,7 +663,11 @@ class FileManagerService
         $trash = $this->guard->trash();
         $now = now()->timestamp * 1000;
 
-        foreach ($this->disk->files($trash) as $file) {
+        if (! $this->disk->directoryExists($trash)) {
+            return 0;
+        }
+
+        foreach ($this->disk->allFiles($trash) as $file) {
             if (!Str::endsWith($file, '.meta.json')) {
                 continue;
             }
@@ -447,6 +678,7 @@ class FileManagerService
                 $this->destroy($original);
                 $this->disk->delete($file);
                 $removed++;
+                $this->audit('prune', ['path' => $original]);
             }
         }
 
@@ -454,7 +686,7 @@ class FileManagerService
     }
 
     // ===========================================================
-    // URL / media
+    // URL / media / partilha
     // ===========================================================
 
     public function mediaUrl(string $path): string
@@ -487,6 +719,32 @@ class FileManagerService
         return url($prefix . '/media/' . $encoded);
     }
 
+    /**
+     * Link de partilha assinado e temporário. Ao contrário do URL de media
+     * (que é público e permanente), este expira e é inviolável — alterar o
+     * caminho invalida a assinatura.
+     */
+    public function shareUrl(string $path, ?int $minutes = null): string
+    {
+        $path = $this->guard->normalize($path);
+
+        if (! $this->disk->fileExists($path)) {
+            throw new \InvalidArgumentException('Só é possível partilhar ficheiros.');
+        }
+
+        $minutes = $minutes ?: (int) config('file-manager.share.expires_minutes', 1440);
+
+        $url = URL::temporarySignedRoute(
+            'file-manager.share',
+            now()->addMinutes($minutes),
+            ['path' => $path],
+        );
+
+        $this->audit('share', ['path' => $path, 'minutes' => $minutes]);
+
+        return $url;
+    }
+
     public function readStream(string $path)
     {
         $path = $this->guard->normalize($path);
@@ -507,28 +765,57 @@ class FileManagerService
     }
 
     // ===========================================================
+    // Auditoria
+    // ===========================================================
+
+    /**
+     * Regista uma operação no log de auditoria. Usa o logger do Laravel —
+     * o canal é configurável, o que permite mandar isto para um ficheiro
+     * próprio sem que o package precise de base de dados.
+     */
+    protected function audit(string $action, array $context = []): void
+    {
+        if (! config('file-manager.audit.enabled', true)) {
+            return;
+        }
+
+        try {
+            $context['user'] = auth()->id();
+            $context['ip'] = request()?->ip();
+        } catch (\Throwable $e) {
+            // fora de um contexto HTTP/auth (ex.: cron) — regista na mesma
+        }
+
+        try {
+            Log::channel(config('file-manager.audit.channel'))
+                ->info('file-manager.' . $action, $context);
+        } catch (\Throwable $e) {
+            // auditoria nunca pode fazer falhar a operação
+        }
+    }
+
+    // ===========================================================
     // Helpers internos
     // ===========================================================
 
-    protected function folderEntry(string $dir): array
+    protected function folderEntry(string $dir, ?int $modified = null, bool $inTrash = false): array
     {
-        $size = $this->directorySize($dir);
-
-        return [
+        $entry = [
             'name' => basename($dir),
             'path' => $dir,
             'type' => 'folder',
             'extension' => 'folder',
-            'size' => $size,
-            'sizeFormatted' => $this->formatBytes($size),
-            'modified' => $this->modified($dir),
+            'size' => null,
+            'sizeFormatted' => null,
+            'modified' => $this->formatModified($modified),
         ];
+
+        return $inTrash ? $this->withExpiry($entry, $dir) : $entry;
     }
 
-    protected function fileEntry(string $file): array
+    protected function fileEntry(string $file, ?int $size = null, ?int $modified = null, bool $inTrash = false): array
     {
         $ext = Str::lower(pathinfo($file, PATHINFO_EXTENSION) ?: 'unknown');
-        $size = $this->disk->size($file);
 
         $entry = [
             'name' => basename($file),
@@ -536,16 +823,19 @@ class FileManagerService
             'type' => $this->classify($ext),
             'extension' => $ext,
             'size' => $size,
-            'sizeFormatted' => $this->formatBytes($size),
-            'modified' => $this->modified($file),
+            'sizeFormatted' => $size === null ? null : $this->formatBytes($size),
+            'modified' => $this->formatModified($modified),
         ];
 
-        // No lixo, expõe quanto tempo resta antes da eliminação definitiva.
-        if ($this->guard->isTrash($file)) {
-            $meta = $this->readMeta($file);
-            if (isset($meta['deleteAt'])) {
-                $entry['expiresAt'] = (int) $meta['deleteAt'];
-            }
+        return $inTrash ? $this->withExpiry($entry, $file) : $entry;
+    }
+
+    /** Acrescenta o prazo de eliminação — vale para ficheiros e pastas. */
+    protected function withExpiry(array $entry, string $path): array
+    {
+        $meta = $this->readMeta($path);
+        if (isset($meta['deleteAt'])) {
+            $entry['expiresAt'] = (int) $meta['deleteAt'];
         }
 
         return $entry;
@@ -573,23 +863,24 @@ class FileManagerService
         return json_decode((string) $this->disk->get($metaPath), true) ?: [];
     }
 
-    protected function directorySize(string $dir): int
+    protected function formatModified(?int $timestamp): ?string
     {
-        $total = 0;
-        foreach ($this->disk->allFiles($dir) as $file) {
-            if (Str::endsWith($file, '.meta.json')) {
-                continue;
-            }
-            $total += $this->disk->size($file);
-        }
-
-        return $total;
+        return $timestamp ? date('Y-m-d H:i', $timestamp) : null;
     }
 
-    protected function modified(string $path): ?string
+    protected function rawModified(string $path): ?int
     {
         try {
-            return date('Y-m-d H:i', $this->disk->lastModified($path));
+            return $this->disk->lastModified($path);
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    protected function rawSize(string $path): ?int
+    {
+        try {
+            return $this->disk->size($path);
         } catch (\Throwable $e) {
             return null;
         }
@@ -597,7 +888,6 @@ class FileManagerService
 
     protected function isDirectory(string $path): bool
     {
-        // Num disco abstrato, "é pasta" = não é ficheiro mas existe como prefixo.
         return !$this->disk->fileExists($path)
             && (count($this->disk->files($path)) > 0
                 || count($this->disk->directories($path)) > 0
@@ -657,7 +947,7 @@ class FileManagerService
 
     protected function ensureExists(string $path): void
     {
-        if (!$this->disk->directoryExists($path)) {
+        if ($path !== '' && !$this->disk->directoryExists($path)) {
             $this->disk->makeDirectory($path);
         }
     }

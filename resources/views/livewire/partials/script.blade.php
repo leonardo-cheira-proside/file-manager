@@ -17,9 +17,9 @@
         return days + 'd ' + hours + 'h';
     };
 
-    window.prosideFileManager = function ({ picker, multiple, view }) {
+    window.prosideFileManager = function ({ picker, multiple, view, downloadBase, zipUrl, csrf }) {
         return {
-            picker, multiple,
+            picker, multiple, downloadBase, zipUrl, csrf,
             // Estado de UI puramente no cliente (Alpine persiste entre re-renders
             // do Livewire). Nada de entangle: em Livewire v4 devolve um wrapper,
             // não um array nativo.
@@ -32,12 +32,15 @@
             modal: { open: false, action: null, type: null, text: '', path: '', file: null },
             moveModal: { open: false, target: '' },
             light: { open: false, url: '', type: '' },
+            pending: [],
+            toast: '',
 
             init() {
                 // Abertura de modal a partir do FAB / outros emissores.
                 this.$root.addEventListener('fm-modal', (e) => this.openModal(e.detail));
                 // Ao mudar de pasta, desseleciona tudo e fecha o menu.
                 this.$wire.on('fm-navigated', () => { this.selected = []; this.menu.open = false; });
+                this.$wire.on('fm-share-link', (e) => this.copyShareLink((e && e.url) || (e && e[0] && e[0].url)));
             },
 
             // ---------- Seleção (cliente) ----------
@@ -96,12 +99,24 @@
                 return items.length > 0 && items.every((f) => f && ['image', 'video', 'other'].includes(f.type));
             },
             downloadSelected() {
-                this.selectionFiles().forEach((f) => {
-                    if (!f.url) return;
-                    const a = document.createElement('a');
-                    a.href = f.url; a.download = f.name || ''; a.target = '_blank';
-                    document.body.appendChild(a); a.click(); a.remove();
+                if (!this.selected.length) return;
+                const items = this.selectionFiles();
+                if (this.selected.length === 1 && items[0] && items[0].type !== 'folder') {
+                    window.location = this.downloadBase + '/' + this.selected[0].split('/').map(encodeURIComponent).join('/');
+                    return;
+                }
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = this.zipUrl;
+                const tok = document.createElement('input');
+                tok.type = 'hidden'; tok.name = '_token'; tok.value = this.csrf;
+                form.appendChild(tok);
+                this.selected.forEach((p) => {
+                    const i = document.createElement('input');
+                    i.type = 'hidden'; i.name = 'paths[]'; i.value = p;
+                    form.appendChild(i);
                 });
+                document.body.appendChild(form); form.submit(); form.remove();
             },
             deleteSelected() {
                 if (!this.selected.length) return;
@@ -238,8 +253,45 @@
             onDropUpload(e) {
                 this.uploadHover = false;
                 if (!([...e.dataTransfer.types].includes('Files'))) return;
-                const files = [...e.dataTransfer.files];
-                if (files.length) this.$wire.uploadMultiple('uploads', files, () => {}, () => {}, () => {});
+                this.startUpload([...e.dataTransfer.files]);
+            },
+            // Mostra um placeholder por ficheiro (nome + loader) enquanto sobe.
+            // O servidor só sabe do ficheiro no fim, por isso este estado é do cliente.
+            startUpload(files) {
+                if (!files || !files.length) return;
+                const batch = files.map((f) => ({
+                    id: (crypto.randomUUID ? crypto.randomUUID() : String(Math.random())),
+                    name: f.name,
+                    progress: 0,
+                }));
+                this.pending.push(...batch);
+                const done = () => { this.pending = this.pending.filter((p) => !batch.includes(p)); };
+                this.$wire.uploadMultiple('uploads', files, done, done, (e) => {
+                    const pct = (e && e.detail && e.detail.progress) || 0;
+                    batch.forEach((b) => { b.progress = pct; });
+                });
+            },
+            uploadProgress() {
+                if (!this.pending.length) return 0;
+                return Math.round(this.pending.reduce((a, p) => a + (p.progress || 0), 0) / this.pending.length);
+            },
+
+            // ---------- Partilha ----------
+            copyShareLink(url) {
+                if (!url) return;
+                const show = () => {
+                    this.toast = @js(__('file-manager::file-manager.share_copied'));
+                    setTimeout(() => { this.toast = ''; }, 2500);
+                };
+                if (navigator.clipboard && window.isSecureContext) {
+                    navigator.clipboard.writeText(url).then(show).catch(() => window.prompt('', url));
+                    return;
+                }
+                const ta = document.createElement('textarea');
+                ta.value = url; ta.style.position = 'fixed'; ta.style.opacity = '0';
+                document.body.appendChild(ta); ta.select();
+                try { document.execCommand('copy'); show(); } catch (err) { window.prompt('', url); }
+                ta.remove();
             },
 
             // ---------- Download ----------

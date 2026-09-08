@@ -73,6 +73,22 @@ return [
     'type_image' => 'Image',
     'type_video' => 'Video',
     'type_file' => 'File',
-    'no-folder' => 'No folders'
+    'no-folder' => 'No folders',
 
+
+    // Ordenação, ações e mensagens de upload
+    'duplicate' => 'Duplicate',
+    'newest' => 'Newest',
+    'oldest' => 'Oldest',
+    'largest' => 'Largest',
+    'smallest' => 'Smallest',
+    'load_more' => 'Load more',
+    'upload_failed' => 'Could not upload the file.',
+    'wrong_type' => 'File type not allowed.',
+
+    // Erros, partilha e progresso de upload
+    'operation_failed' => 'The operation could not be completed.',
+    'share' => 'Copy share link',
+    'share_copied' => 'Link copied to clipboard.',
+    'uploading_file' => 'Uploading…',
 ];

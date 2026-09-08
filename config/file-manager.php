@@ -75,6 +75,64 @@ return [
     | Classificação de tipos por extensão
     |--------------------------------------------------------------------------
     */
+    /*
+    |--------------------------------------------------------------------------
+    | Extensões forçadas a descarregar
+    |--------------------------------------------------------------------------
+    |
+    | Tipos que o browser interpretaria como documento se abertos na origem
+    | da aplicação. Um SVG é XML e pode conter <script>: aberto diretamente
+    | correria no teu domínio, com acesso aos cookies de sessão. Estes são
+    | sempre servidos com "Content-Disposition: attachment" — continuam a
+    | funcionar dentro de <img>, apenas deixam de executar quando abertos.
+    |
+    */
+    'attachment_extensions' => [
+        'svg', 'svgz', 'html', 'htm', 'xhtml', 'xml', 'xsl',
+        'js', 'mjs', 'php', 'phtml', 'phar', 'swf',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Pesquisa
+    |--------------------------------------------------------------------------
+    |
+    | A pesquisa varre recursivamente as raízes do utilizador. O resultado do
+    | varrimento fica em cache uns segundos para que escrever na caixa não
+    | relance a travessia a cada tecla. 0 desliga a cache.
+    |
+    */
+    'search' => [
+        'cache_seconds' => (int) env('FILE_MANAGER_SEARCH_CACHE', 10),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Partilha (links assinados)
+    |--------------------------------------------------------------------------
+    |
+    | Validade por omissão dos links de partilha, em minutos (1440 = 24h).
+    |
+    */
+    'share' => [
+        'expires_minutes' => (int) env('FILE_MANAGER_SHARE_MINUTES', 1440),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Auditoria
+    |--------------------------------------------------------------------------
+    |
+    | Regista as operações (upload, mover, copiar, renomear, eliminar,
+    | restaurar, partilhar) via o logger do Laravel. Define um canal em
+    | config/logging.php para separar isto do log da aplicação.
+    |
+    */
+    'audit' => [
+        'enabled' => (bool) env('FILE_MANAGER_AUDIT', true),
+        'channel' => env('FILE_MANAGER_AUDIT_CHANNEL'),
+    ],
+
     'image_extensions' => ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'avif'],
     'video_extensions' => ['mp4', 'mov', 'webm', 'avi', 'ogg', 'mkv', 'm4v'],
 
@@ -95,6 +153,7 @@ return [
         // Rota de media (ver imagens/vídeos/ficheiros). Pública por omissão:
         // ver conteúdo não exige auth; só entrar no gestor e alterar exige.
         'media_middleware' => ['web'],
+        'redirect_on_error' => 'dashboard',
         // Layout Blade que envolve a página full-page (deve ter @yield('content')
         // ou um slot $slot). Por omissão usa o layout próprio do package.
         'layout' => null,

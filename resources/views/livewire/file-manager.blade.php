@@ -1,4 +1,4 @@
-<div class="fm-root relative flex flex-col h-full w-full bg-gray-50 text-gray-800 select-none" x-data="fileManager({ picker: @js($pickerMode), multiple: @js($multiple), view: @js($viewMode) })"
+<div class="fm-root relative flex flex-col h-full w-full bg-gray-50 text-gray-800 select-none" x-data="fileManager({ picker: @js($pickerMode), multiple: @js($multiple), view: @js($viewMode), downloadBase: @js(url(trim((string) (config('file-manager.route.prefix') ?? 'file-manager'), '/') . '/download')), zipUrl: @js(route('file-manager.download-zip')), csrf: @js(csrf_token()) })"
     @keydown.escape.window="closeAll()" @keydown.window="onShortcut($event)">
     {{-- Estilos do componente inline: garantem que carregam em QUALQUER contexto
          (página inteira, embebido ou dentro do modal do picker), sem depender de
@@ -143,9 +143,9 @@
             <hr class="border-gray-200 my-2">
 
             {{-- Lixo --}}
-            <div wire:click="open('{{ config('file-manager.trash') }}')"
+            <div wire:click="open('{{ $this->trashPath }}')"
                 class="flex items-center gap-2 px-2 py-1.5 cursor-pointer rounded-md hover:bg-gray-100 text-sm"
-                :class="$wire.path === '{{ config('file-manager.trash') }}' ? 'bg-gray-100 text-red-700' : 'text-gray-700'">
+                :class="$wire.path === '{{ $this->trashPath }}' ? 'bg-gray-100 text-red-700' : 'text-gray-700'">
                 <x-file-manager::icons.delete class="h-4 w-4 text-red-600 shrink-0" />
                 <span class="truncate">{{ config('file-manager.trash') }}</span>
             </div>
@@ -240,7 +240,8 @@
                         </button>
                         <label class="{{ $tbBtn }} cursor-pointer">
                             <x-file-manager::icons.cloud-upload class="text-gray-400 h-4 w-4" /> @lang('file-manager::file-manager.upload')
-                            <input type="file" wire:model="uploads" multiple class="hidden">
+                            <input type="file" multiple class="hidden"
+                                @change="startUpload([...$event.target.files]); $event.target.value = ''">
                         </label>
                     @endunless
 
@@ -297,7 +298,12 @@
                                     <x-file-manager::icons.duplicate class="h-4 w-4 text-proximo-600" />
                                     @lang('file-manager::file-manager.copy_to')
                                 </button>
-                                <button type="button" x-show="allSelectedAreFiles()"
+                                <button type="button" @click="$wire.duplicate([...selected]); selected = []; moreOpen=false"
+                                    class="{{ $menuItem }}">
+                                    <x-file-manager::icons.duplicate class="h-4 w-4 text-proximo-600" />
+                                    @lang('file-manager::file-manager.duplicate')
+                                </button>
+                                <button type="button" x-show="selected.length > 0"
                                     @click="downloadSelected(); moreOpen=false" class="{{ $menuItem }}">
                                     <x-file-manager::icons.download class="h-4 w-4 text-proximo-600" />
                                     @lang('file-manager::file-manager.download')
@@ -319,17 +325,43 @@
                     @endif
                 </div>
 
-                <div class="flex">
-                    <button type="button" @click="view = 'grid'"
-                        class="flex border w-fit h-8 items-center justify-center px-2 gap-1 hover:bg-gray-50"
-                        :class="view === 'grid' ? 'bg-proximo-50 text-proximo-700 border-proximo-300' : 'text-gray-400'">
-                        <x-file-manager::icons.grid class="h-4 w-4" />
-                    </button>
-                    <button type="button" @click="view = 'list'"
-                        class="flex border w-fit h-8 items-center justify-center px-2 gap-1 hover:bg-gray-50"
-                        :class="view === 'list' ? 'bg-proximo-50 text-proximo-700 border-proximo-300' : 'text-gray-400'">
-                        <x-file-manager::icons.list class="h-4 w-4" />
-                    </button>
+                <div class="flex items-center gap-2">
+                    <div class="relative" x-data="{ fo: false }" @click.outside="fo = false">
+                        <button type="button" @click="fo = !fo" class="{{ $tbBtn }}">
+                            <x-file-manager::icons.hopper /> @lang('file-manager::file-manager.filters') ▾
+                        </button>
+                        <div x-show="fo" x-cloak x-transition
+                            class="absolute right-0 mt-1 w-52 bg-white border border-gray-200 shadow-xl rounded-xl py-2 z-50 text-sm text-gray-700">
+                            <p class="px-4 py-1 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                                @lang('file-manager::file-manager.sort_by')</p>
+                            @foreach (['az' => 'A–Z', 'za' => 'Z–A', 'newest' => __('file-manager::file-manager.newest'), 'oldest' => __('file-manager::file-manager.oldest'), 'largest' => __('file-manager::file-manager.largest'), 'smallest' => __('file-manager::file-manager.smallest')] as $id => $label)
+                                <button type="button" wire:click="setSort('{{ $id }}')" @click="fo = false"
+                                    class="{{ $menuItem }} {{ $sort === $id ? 'bg-gray-100 font-semibold text-proximo-900' : '' }}">{{ $label }}</button>
+                            @endforeach
+                            @unless ($lockFilter)
+                                <div class="h-px bg-gray-100 my-1.5 mx-2"></div>
+                                <p class="px-4 py-1 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                                    @lang('file-manager::file-manager.filter_content')</p>
+                                @foreach (['all' => __('file-manager::file-manager.all'), 'folders' => __('file-manager::file-manager.folders'), 'no-folder' => __('file-manager::file-manager.no-folder'), 'images' => __('file-manager::file-manager.images'), 'videos' => __('file-manager::file-manager.videos')] as $id => $label)
+                                    <button type="button" wire:click="setFilter('{{ $id }}')" @click="fo = false"
+                                        class="{{ $menuItem }} {{ $filter === $id ? 'bg-gray-100 font-semibold text-proximo-900' : '' }}">{{ $label }}</button>
+                                @endforeach
+                            @endunless
+                        </div>
+                    </div>
+
+                    <div class="flex">
+                        <button type="button" @click="view = 'grid'"
+                            class="flex border w-fit h-8 items-center justify-center px-2 gap-1 hover:bg-gray-50"
+                            :class="view === 'grid' ? 'bg-proximo-50 text-proximo-700 border-proximo-300' : 'text-gray-400'">
+                            <x-file-manager::icons.grid class="h-4 w-4" />
+                        </button>
+                        <button type="button" @click="view = 'list'"
+                            class="flex border w-fit h-8 items-center justify-center px-2 gap-1 hover:bg-gray-50"
+                            :class="view === 'list' ? 'bg-proximo-50 text-proximo-700 border-proximo-300' : 'text-gray-400'">
+                            <x-file-manager::icons.list class="h-4 w-4" />
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -342,7 +374,8 @@
                 @php $items = $this->files; @endphp
 
                 @if (count($items) === 0)
-                    <div class="flex flex-col items-center justify-center py-20 text-gray-400 min-h-full"
+                    <div x-show="pending.length === 0"
+                        class="flex flex-col items-center justify-center py-20 text-gray-400 min-h-full"
                         @click="selected = []" @contextmenu.prevent="openBackgroundMenu($event)">
                         <svg class="h-16 w-16 opacity-20 mb-4" fill="currentColor" viewBox="0 0 20 20">
                             <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
@@ -353,15 +386,34 @@
                     </div>
                 @endif
 
-                @if (count($items) > 0)
-                    <div x-show="view === 'grid'" x-cloak @contextmenu.self.prevent="openBackgroundMenu($event)"
-                        class="grid pt-2 grid-cols-[repeat(auto-fill,160px)] gap-2 justify-center content-start">
-                        @foreach ($items as $file)
-                            @include('file-manager::livewire.partials.grid-item', ['file' => $file])
-                        @endforeach
-                    </div>
+                @php $hasItems = count($items) > 0; @endphp
 
-                    <table x-show="view === 'list'" x-cloak class="w-full text-left text-sm">
+                <div x-show="view === 'grid' && (@js($hasItems) || pending.length > 0)" x-cloak
+                    @contextmenu.self.prevent="openBackgroundMenu($event)"
+                    class="grid pt-2 grid-cols-[repeat(auto-fill,160px)] gap-2 justify-center content-start">
+                    @foreach ($items as $file)
+                        @include('file-manager::livewire.partials.grid-item', ['file' => $file])
+                    @endforeach
+
+                    {{-- Placeholder por ficheiro em upload: nome + loader no lugar da miniatura. --}}
+                    <template x-for="p in pending" :key="p.id">
+                        <div
+                            class="relative w-40 p-4 border border-dashed border-proximo-300 bg-white/70 rounded-xl flex flex-col items-center justify-center text-center">
+                            <div class="relative w-full h-24 flex items-center justify-center bg-gray-50 rounded-lg">
+                                <x-file-manager::icons.spinner class="h-6 w-6 text-proximo-500" />
+                            </div>
+                            <p class="text-[11px] mt-2 truncate font-medium text-gray-600 w-full px-1" x-text="p.name"
+                                :title="p.name"></p>
+                            <div class="w-full h-1 mt-1.5 bg-gray-200 rounded-full overflow-hidden">
+                                <div class="h-full bg-proximo-500 transition-all duration-200"
+                                    :style="`width:${p.progress || 0}%`"></div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                <table x-show="view === 'list' && (@js($hasItems) || pending.length > 0)" x-cloak
+                        class="w-full text-left text-sm">
                         <thead class="bg-gray-50 sticky top-0 z-10 text-[11px] uppercase tracking-wide text-gray-600">
                             <tr>
                                 <th class="px-3 py-2.5 w-10 text-center" @click.stop>
@@ -381,17 +433,60 @@
                             @foreach ($items as $file)
                                 @include('file-manager::livewire.partials.list-item', ['file' => $file])
                             @endforeach
+                            <template x-for="p in pending" :key="p.id">
+                                <tr class="text-gray-500">
+                                    <td class="px-3 py-2 text-center">
+                                        <x-file-manager::icons.spinner class="h-4 w-4 text-proximo-500 inline-block" />
+                                    </td>
+                                    <td class="px-4 py-2 truncate" x-text="p.name"></td>
+                                    <td class="px-3 py-2 text-center" x-text="(p.progress || 0) + '%'"></td>
+                                    <td class="px-3 py-2 text-center">@lang('file-manager::file-manager.uploading_file')</td>
+                                    <td class="px-4 py-2 text-right">—</td>
+                                    @if ($this->inTrash)
+                                        <td class="px-4 py-2 text-right">—</td>
+                                    @endif
+                                </tr>
+                            </template>
                         </tbody>
                     </table>
+
+                @if ($this->hasMore)
+                    <div class="flex justify-center py-4">
+                        <button type="button" wire:click="loadMore" class="{{ $tbBtn }}">
+                            @lang('file-manager::file-manager.load_more')
+                        </button>
+                    </div>
                 @endif
             </main>
         </div>
     </div>
 
-    {{-- Barra de progresso de upload --}}
-    <div wire:loading wire:target="uploads"
-        class="fixed bottom-6 right-6 z-40 w-40 h-2 bg-gray-200 rounded-full overflow-hidden">
-        <div class="h-full bg-proximo-500 animate-pulse w-full"></div>
+    {{-- Barra de progresso de upload. "absolute" (e não "fixed") para ficar
+         ancorada ao .fm-root — dentro do modal do picker, "fixed" colava-a ao
+         canto da janela, fora do gestor. --}}
+    <div x-show="pending.length > 0" x-cloak
+        class="absolute bottom-6 right-6 z-40 w-44 rounded-lg bg-white/95 border border-gray-200 shadow-lg p-2">
+        <div class="flex items-center gap-2 mb-1.5">
+            <x-file-manager::icons.spinner class="h-3.5 w-3.5 text-proximo-500" />
+            <span class="text-[11px] text-gray-600 truncate"
+                x-text="pending.length + ' · ' + uploadProgress() + '%'"></span>
+        </div>
+        <div class="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
+            <div class="h-full bg-proximo-500 transition-all duration-200" :style="`width:${uploadProgress()}%`"></div>
+        </div>
+    </div>
+
+    {{-- Erro da última operação --}}
+    @if ($this->error !== '')
+        <div class="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 rounded-lg bg-red-600 px-4 py-2 text-sm text-white shadow-lg">
+            <span>{{ $this->error }}</span>
+            <button type="button" wire:click="dismissError" class="opacity-80 hover:opacity-100">&times;</button>
+        </div>
+    @endif
+
+    {{-- Confirmação de link copiado --}}
+    <div x-show="toast" x-cloak x-text="toast"
+        class="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 rounded-lg bg-gray-900 px-4 py-2 text-sm text-white shadow-lg">
     </div>
 
     {{-- ===================== Menu de contexto ===================== --}}

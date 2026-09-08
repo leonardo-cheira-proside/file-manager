@@ -6,7 +6,7 @@ use Illuminate\Http\Request;
 use Proside\FileManager\Support\FileManagerService;
 use Symfony\Component\HttpFoundation\Response;
 
-class MediaController
+class DownloadController
 {
     use ServesFiles;
 
@@ -20,10 +20,9 @@ class MediaController
             abort(404);
         }
 
-        $this->abortIfPrivate($service, $path);
-
+        abort_if(str_ends_with($path, '.meta.json'), 404);
         abort_unless($service->disk()->fileExists($path), 404);
 
-        return $this->serve($request, $service, $path);
+        return $this->serve($request, $service, $path, forceDownload: true);
     }
 }

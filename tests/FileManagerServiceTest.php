@@ -73,9 +73,9 @@ class FileManagerServiceTest extends TestCase
 
         $s->trash(['conteudos/a.png']);
         $this->assertFalse($s->exists('conteudos/a.png'));
-        $this->assertTrue($s->exists('apagados/a.png'));
+        $this->assertTrue($s->exists('apagados/conteudos/a.png'));
 
-        $s->restore(['apagados/a.png']);
+        $s->restore(['apagados/conteudos/a.png']);
         $this->assertTrue($s->exists('conteudos/a.png'));
         $this->assertFalse($s->exists('apagados/a.png'));
     }
@@ -91,7 +91,7 @@ class FileManagerServiceTest extends TestCase
         $removed = $s->pruneTrash();
 
         $this->assertSame(1, $removed);
-        $this->assertFalse($s->exists('apagados/a.png'));
+        $this->assertFalse($s->exists('apagados/conteudos/a.png'));
     }
 
     public function test_path_traversal_is_blocked(): void
@@ -176,9 +176,57 @@ class FileManagerServiceTest extends TestCase
         $s->upload(UploadedFile::fake()->image('mine.png'), 'conteudos/optivisao');
         $s->trash(['conteudos/optivisao/mine.png']);
 
-        $names = array_column($s->listing('apagados'), 'name');
+        $names = array_column($s->listing($s->trashRoot()), 'name');
         $this->assertContains('mine.png', $names);
         $this->assertNotContains('outside.png', $names);
+
+        // O lixo do outro tenant nem sequer é endereçável.
+        $this->expectException(\InvalidArgumentException::class);
+        $s->listing('apagados/conteudos');
+    }
+
+    public function test_listing_sorts_by_size(): void
+    {
+        $s = $this->service();
+        $s->upload(UploadedFile::fake()->create('small.bin', 10), 'conteudos');
+        $s->upload(UploadedFile::fake()->create('big.bin', 100), 'conteudos');
+
+        $names = array_column($s->listing('conteudos', 'no-folder', 'largest'), 'name');
+
+        $this->assertSame('big.bin', $names[0]);
+    }
+
+    public function test_search_finds_across_subfolders(): void
+    {
+        $s = $this->service();
+        $s->createFolder('conteudos', 'Sub');
+        $s->upload(UploadedFile::fake()->image('needle.png'), 'conteudos/Sub');
+
+        $names = array_column($s->search('needle'), 'name');
+
+        $this->assertContains('needle.png', $names);
+    }
+
+    public function test_duplicate_copies_with_unique_name(): void
+    {
+        $s = $this->service();
+        $s->upload(UploadedFile::fake()->image('a.png'), 'conteudos');
+
+        $out = $s->duplicate(['conteudos/a.png']);
+
+        $this->assertSame('conteudos/a (1).png', $out[0]);
+        $this->assertTrue($s->exists('conteudos/a (1).png'));
+    }
+
+    public function test_copy_to_folder(): void
+    {
+        $s = $this->service();
+        $s->createFolder('conteudos', 'Dest');
+        $s->upload(UploadedFile::fake()->image('a.png'), 'conteudos');
+
+        $s->copy(['conteudos/a.png'], 'conteudos/Dest');
+
+        $this->assertTrue($s->exists('conteudos/Dest/a.png'));
     }
 
     public function test_rename_preserves_extension(): void

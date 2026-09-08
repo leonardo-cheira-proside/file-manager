@@ -1,5 +1,6 @@
 {{-- Modal: criar pasta / renomear / eliminar --}}
-<div x-show="modal.open" x-cloak class="fixed inset-0 z-[1000] flex items-center justify-center">
+<div x-show="modal.open" x-cloak role="dialog" aria-modal="true"
+    class="fixed inset-0 z-[1000] flex items-center justify-center">
     <div class="absolute inset-0 bg-black/50" @click="modal.open = false"></div>
 
     <div class="relative bg-white p-6 rounded-xl shadow-xl w-96">

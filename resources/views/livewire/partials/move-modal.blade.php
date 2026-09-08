@@ -1,5 +1,6 @@
 {{-- Modal: mover seleção para uma pasta destino --}}
-<div x-show="moveModal.open" x-cloak class="fixed inset-0 z-[1000] flex items-center justify-center">
+<div x-show="moveModal.open" x-cloak role="dialog" aria-modal="true"
+    class="fixed inset-0 z-[1000] flex items-center justify-center">
     <div class="absolute inset-0 bg-black/50" @click="moveModal.open = false"></div>
 
     <div class="relative bg-white p-6 rounded-xl shadow-xl w-[28rem] max-h-[80vh] flex flex-col">

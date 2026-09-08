@@ -99,6 +99,31 @@ class FileManagerComponentTest extends TestCase
         $res->assertOk();
     }
 
+    public function test_download_route_returns_attachment(): void
+    {
+        Storage::disk('fm-test')->put('conteudos/a.png', 'x');
+
+        $res = $this->actingAs(new \Illuminate\Foundation\Auth\User())
+            ->get(url('file-manager/download/conteudos/a.png'));
+
+        $res->assertOk();
+        $res->assertHeader('content-disposition');
+    }
+
+    public function test_zip_route_returns_zip(): void
+    {
+        if (! class_exists(\ZipArchive::class)) {
+            $this->markTestSkipped('ext-zip not available');
+        }
+        Storage::disk('fm-test')->put('conteudos/a.png', 'x');
+        Storage::disk('fm-test')->put('conteudos/b.png', 'y');
+
+        $res = $this->actingAs(new \Illuminate\Foundation\Auth\User())
+            ->post(url('file-manager/download-zip'), ['paths' => ['conteudos/a.png', 'conteudos/b.png']]);
+
+        $res->assertOk();
+    }
+
     public function test_delete_moves_to_trash(): void
     {
         Storage::disk('fm-test')->put('conteudos/a.png', 'x');
@@ -107,6 +132,37 @@ class FileManagerComponentTest extends TestCase
             ->call('delete', ['conteudos/a.png']);
 
         $this->assertFalse(Storage::disk('fm-test')->exists('conteudos/a.png'));
-        $this->assertTrue(Storage::disk('fm-test')->exists('apagados/a.png'));
+        $this->assertTrue(Storage::disk('fm-test')->exists('apagados/conteudos/a.png'));
+    }
+
+    public function test_trash_view_renders_with_items(): void
+    {
+        Storage::disk('fm-test')->put('conteudos/a.png', 'x');
+
+        $c = Livewire::test(FileManager::class)->call('delete', ['conteudos/a.png']);
+        $c->call('open', 'apagados/conteudos')
+            ->assertOk()
+            ->assertSet('inTrash', true)
+            ->assertSee('a.png');
+    }
+
+    public function test_share_dispatches_a_signed_link(): void
+    {
+        Storage::disk('fm-test')->put('conteudos/doc.txt', 'x');
+
+        Livewire::test(FileManager::class)
+            ->call('share', 'conteudos/doc.txt')
+            ->assertDispatched('fm-share-link');
+    }
+
+    public function test_upload_places_file_in_current_folder(): void
+    {
+        Livewire::test(FileManager::class)
+            ->call('createFolder', 'Destino', 'conteudos')
+            ->call('open', 'conteudos/Destino')
+            ->set('uploads', [UploadedFile::fake()->image('novo.png')])
+            ->assertOk();
+
+        $this->assertTrue(Storage::disk('fm-test')->exists('conteudos/Destino/novo.png'));
     }
 }

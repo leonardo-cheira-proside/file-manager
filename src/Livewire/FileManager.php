@@ -15,8 +15,15 @@ class FileManager extends Component
     /** Pasta atualmente aberta (relativa ao disco). */
     public string $path = '';
 
-    /** Filtro/ordenação: all|folders|images|videos|az|za */
+    /** Filtro de conteúdo: all|folders|images|videos|no-folder */
     public string $filter = 'all';
+
+    public string $sort = 'az';
+
+    public int $limit = 60;
+
+    /** Mensagem de erro da última operação (vazia = sem erro). */
+    public string $error = '';
 
     /** Modo de visualização: grid|list */
     public string $viewMode = 'grid';
@@ -72,17 +79,17 @@ class FileManager extends Component
     // ===========================================================
 
     #[Computed]
-    public function files(): array
+    public function allFiles(): array
     {
         $service = $this->service();
-        $entries = $service->listing($this->path, $this->filter);
 
-        if ($this->search !== '') {
-            $needle = mb_strtolower(trim($this->search));
-            $entries = array_values(array_filter(
-                $entries,
-                fn ($e) => str_contains(mb_strtolower($e['name']), $needle)
-            ));
+        try {
+            $entries = $this->search !== ''
+                ? $service->search($this->search, $this->sort)
+                : $service->listing($this->path, $this->filter, $this->sort);
+        } catch (\Throwable $e) {
+            $this->path = $service->root();
+            $entries = $service->listing($this->path, $this->filter, $this->sort);
         }
 
         return array_map(function (array $entry) use ($service) {
@@ -92,6 +99,18 @@ class FileManager extends Component
 
             return $entry;
         }, $entries);
+    }
+
+    #[Computed]
+    public function files(): array
+    {
+        return array_slice($this->allFiles, 0, $this->limit);
+    }
+
+    #[Computed]
+    public function hasMore(): bool
+    {
+        return count($this->allFiles) > $this->limit;
     }
 
     #[Computed]
@@ -123,13 +142,12 @@ class FileManager extends Component
     {
         // Base = a raiz (ou lixo) mais específica que contém o caminho atual,
         // para não expor segmentos acima dela (válido com várias raízes).
-        $service = $this->service();
-        $roots = $service->roots();
-        $trash = $service->guard()->trash();
+        $guard = $this->service()->guard();
+        $roots = $guard->roots();
 
         $base = $roots[0];
         $bestLen = -1;
-        foreach ([...$roots, $trash] as $candidate) {
+        foreach ([...$roots, ...$guard->trashRoots()] as $candidate) {
             if (($this->path === $candidate || str_starts_with($this->path, $candidate.'/'))
                 && strlen($candidate) > $bestLen) {
                 $base = $candidate;
@@ -165,6 +183,13 @@ class FileManager extends Component
         return $this->service()->root();
     }
 
+    /** Ramo do lixo do utilizador (o lixo espelha a árvore de origem). */
+    #[Computed]
+    public function trashPath(): string
+    {
+        return $this->service()->trashRoot();
+    }
+
     /** Etiqueta da raiz (último segmento; "conteudos" em acesso total). */
     #[Computed]
     public function rootLabel(): string
@@ -178,10 +203,18 @@ class FileManager extends Component
 
     public function open(string $path): void
     {
-        $this->path = $this->service()->guard()->normalize($path);
-        $this->selected = [];
+        $service = $this->service();
 
-        // Limpa a seleção no cliente (Alpine) ao mudar de pasta.
+        try {
+            $this->path = $service->guard()->normalize($path);
+        } catch (\Throwable $e) {
+            $this->path = $service->root();
+        }
+
+        $this->selected = [];
+        $this->limit = 60;
+        $this->error = '';
+
         $this->dispatch('fm-navigated', path: $this->path);
     }
 
@@ -224,6 +257,23 @@ class FileManager extends Component
     public function setFilter(string $filter): void
     {
         $this->filter = $filter;
+        $this->limit = 60;
+    }
+
+    public function setSort(string $sort): void
+    {
+        $this->sort = $sort;
+        $this->limit = 60;
+    }
+
+    public function loadMore(): void
+    {
+        $this->limit = min($this->limit + 60, 600);
+    }
+
+    public function updatedSearch(): void
+    {
+        $this->limit = 60;
     }
 
     public function setView(string $mode): void
@@ -242,11 +292,11 @@ class FileManager extends Component
         }
 
         $parent = $parent ?: $this->path;
-        $newPath = $this->service()->createFolder($parent, $name);
 
-        // Expande o pai e a nova pasta na árvore.
-        $this->openFolders = array_values(array_unique([...$this->openFolders, $parent, $newPath]));
-        $this->refreshData();
+        $this->guarded(function () use ($name, $parent) {
+            $newPath = $this->service()->createFolder($parent, $name);
+            $this->openFolders = array_values(array_unique([...$this->openFolders, $parent, $newPath]));
+        });
     }
 
     public function rename(string $path, string $newName): void
@@ -254,35 +304,31 @@ class FileManager extends Component
         if ($this->inTrash) {
             return;
         }
-        $this->service()->rename($path, $newName);
-        $this->refreshData();
+
+        $this->guarded(fn () => $this->service()->rename($path, $newName));
     }
 
     public function delete(array|string $paths): void
     {
         $paths = (array) $paths;
-        $this->service()->trash($paths);
 
-        // Se a pasta atual foi para o lixo, sobe um nível.
-        if (in_array($this->path, $paths, true)) {
-            $this->path = $this->parentPath($this->path);
-        }
-        $this->selected = [];
-        $this->refreshData();
+        $this->guarded(function () use ($paths) {
+            $this->service()->trash($paths);
+
+            if (in_array($this->path, $paths, true)) {
+                $this->path = $this->parentPath($this->path);
+            }
+        });
     }
 
     public function restore(array|string $paths): void
     {
-        $this->service()->restore((array) $paths);
-        $this->selected = [];
-        $this->refreshData();
+        $this->guarded(fn () => $this->service()->restore((array) $paths));
     }
 
     public function deleteForever(array|string $paths): void
     {
-        $this->service()->deleteForever((array) $paths);
-        $this->selected = [];
-        $this->refreshData();
+        $this->guarded(fn () => $this->service()->deleteForever((array) $paths));
     }
 
     public function moveItems(array $from, string $to): void
@@ -290,9 +336,8 @@ class FileManager extends Component
         if ($this->inTrash) {
             return;
         }
-        $this->service()->move($from, $to);
-        $this->selected = [];
-        $this->refreshData();
+
+        $this->guarded(fn () => $this->service()->move($from, $to));
     }
 
     public function copyItems(array $from, string $to): void
@@ -300,9 +345,33 @@ class FileManager extends Component
         if ($this->inTrash) {
             return;
         }
-        $this->service()->copy($from, $to);
-        $this->selected = [];
-        $this->refreshData();
+
+        $this->guarded(fn () => $this->service()->copy($from, $to));
+    }
+
+    public function duplicate(array|string $paths): void
+    {
+        if ($this->inTrash) {
+            return;
+        }
+
+        $this->guarded(fn () => $this->service()->duplicate((array) $paths));
+    }
+
+    /** Gera um link de partilha assinado e devolve-o ao cliente para copiar. */
+    public function share(string $path): void
+    {
+        try {
+            $url = $this->service()->shareUrl($path);
+            $this->dispatch('fm-share-link', url: $url);
+        } catch (\Throwable $e) {
+            $this->error = __('file-manager::file-manager.operation_failed');
+        }
+    }
+
+    public function dismissError(): void
+    {
+        $this->error = '';
     }
 
     /** Lifecycle hook: dispara quando o upload (wire:model) termina. */
@@ -320,11 +389,15 @@ class FileManager extends Component
         }
         $this->validate($rules);
 
-        foreach ($this->uploads as $file) {
-            $this->service()->upload($file, $this->path);
-        }
+        $uploads = $this->uploads;
         $this->uploads = [];
-        $this->refreshData();
+
+        $this->guarded(function () use ($uploads) {
+            foreach ($uploads as $file) {
+                $this->service()->upload($file, $this->path);
+            }
+        });
+
         $this->dispatch('file-manager-uploaded');
     }
 
@@ -354,25 +427,45 @@ class FileManager extends Component
     // Helpers
     // ===========================================================
 
+    /**
+     * Corre uma operação sem deixar que uma exceção rebente a página.
+     * Um caminho inválido ou uma escrita falhada viram uma mensagem, não um 500.
+     */
+    protected function guarded(\Closure $op): void
+    {
+        $this->error = '';
+
+        try {
+            $op();
+        } catch (\Throwable $e) {
+            report($e);
+            $this->error = __('file-manager::file-manager.operation_failed');
+        }
+
+        $this->selected = [];
+        $this->refreshData();
+    }
+
     protected function refreshData(): void
     {
-        unset($this->files, $this->tree, $this->roots, $this->breadcrumbs, $this->inTrash);
+        unset($this->allFiles, $this->files, $this->hasMore, $this->tree, $this->roots, $this->breadcrumbs, $this->inTrash, $this->trashPath);
     }
 
     protected function parentPath(string $path): string
     {
-        $roots = $this->service()->roots();
+        $guard = $this->service()->guard();
+        $bases = [...$guard->roots(), ...$guard->trashRoots()];
         $parent = str_replace('\\', '/', dirname($path));
         $parent = $parent === '.' ? '' : $parent;
 
-        // Nunca subir acima de uma raiz efetiva.
-        foreach ($roots as $root) {
-            if ($parent === $root || str_starts_with($parent, $root.'/')) {
+        // Nunca subir acima de uma raiz efetiva (nem do respetivo ramo do lixo).
+        foreach ($bases as $base) {
+            if ($parent === $base || str_starts_with($parent, $base.'/')) {
                 return $parent;
             }
         }
 
-        return $roots[0];
+        return $guard->root();
     }
 
     public function render()

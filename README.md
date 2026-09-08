@@ -127,13 +127,55 @@ Regras aplicadas pelo package quando há resolver:
 - devolve `null`, `''`, ou um valor igual à raiz da config → **acesso total**;
 - devolve `"conteudos/optivisao"` → o utilizador só vê **essa pasta para baixo**
   (árvore, breadcrumbs, navegação e operações ficam confinadas; aceder acima é
-  bloqueado por `PathGuard`); o **lixo** mostra apenas o que esse utilizador apagou
-  (via `originalPath`).
+  bloqueado por `PathGuard`).
 - devolve um **array** (ex.: `['conteudos/a', 'conteudos/b']`) → o utilizador vê
   **várias raízes**: cada uma aparece na sidebar com a sua árvore, abre-se na
   primeira, e a navegação fica confinada a qualquer uma delas. Caminhos fora da
-  raiz da config são ignorados (não escalam privilégios). O lixo é partilhado,
-  filtrado pela origem de qualquer das raízes.
+  raiz da config são ignorados (não escalam privilégios).
+
+### O lixo espelha a árvore de origem
+
+`conteudos/optivisao/fotos/x.png` é eliminado para
+`apagados/conteudos/optivisao/fotos/x.png`. Isto tem três consequências:
+
+- **Confinamento por prefixo.** O lixo de cada raiz é um ramo próprio, validado
+  pelo `PathGuard` como qualquer outro caminho. Um utilizador confinado não
+  consegue ler, restaurar nem eliminar definitivamente o que outro apagou.
+- **Restauro sem metadados.** O destino vem do próprio caminho, e é revalidado —
+  um item não pode ser restaurado para fora das raízes do utilizador.
+- **Sem colisões.** `a/relatorio.txt` e `b/relatorio.txt` deixam de disputar o
+  mesmo nome no lixo.
+
+O sidecar `.meta.json` mantém-se, mas só guarda o prazo de expiração.
+
+> **Migração.** Instalações que já tenham itens no lixo antigo (plano, em
+> `apagados/<ficheiro>`) deixam de os ver — o acesso falha fechado, nada é
+> perdido. Para os recuperar, mova cada ficheiro para o caminho indicado no
+> respetivo `originalPath` prefixado por `apagados/`, ou esvazie o lixo antes
+> de atualizar.
+
+### Partilha por link assinado
+
+`GET file-manager/share/<caminho>` serve um ficheiro através de um URL assinado
+e temporário, gerado pelo menu de contexto ("Copiar link de partilha") ou por
+código:
+
+```php
+app(\Proside\FileManager\Support\FileManagerService::class)
+    ->shareUrl('conteudos/optivisao/contrato.pdf', minutes: 60);
+```
+
+A autorização é a assinatura, não a sessão: o link funciona para quem o receber,
+expira, e alterar o caminho invalida-o. Ao contrário do URL de media (público e
+permanente), é a forma indicada para partilhar conteúdo com terceiros.
+
+### Auditoria
+
+As operações que alteram ficheiros (upload, mover, copiar, duplicar, renomear,
+criar pasta, eliminar, restaurar, eliminar definitivamente, partilhar, prune)
+são registadas via o logger do Laravel, com utilizador e IP. Para as separar do
+log da aplicação, defina um canal em `config/logging.php` e aponte
+`file-manager.audit.channel` para ele.
 
 Exemplo de resolver (Backoffice Proside — perfil `gflevel` ligado por `gfleveluser`,
 campo `gflevel_ctvdir`): ver [`docs/BACKOFFICE-INTEGRATION.md`](docs/BACKOFFICE-INTEGRATION.md).
@@ -151,11 +193,43 @@ O resolver pode ser um **class-string invocável** (compatível com `config:cach
 | `uploads.max_size`     | `51200` (KB) | Tamanho máximo por ficheiro                                                      |
 | `uploads.mimes`        | `null`       | Mimes aceites (null = todos)                                                     |
 | `media_url`            | `route`      | `route` (seguro, qualquer disco/nome) / `storage` (direto, mais rápido) / `auto` |
+| `route.middleware`     | `web, auth`  | Middleware do gestor/upload/download                                             |
+| `route.media_middleware` | `web`      | Middleware da rota de media — pública por omissão (ver conteúdo sem auth)         |
+| `route.redirect_on_error` | `dashboard` | Para onde redireciona se o `root_resolver` falhar (evita erro 500)              |
 | `route.*`              | —            | Prefixo, middleware e rota full-page                                             |
+| `attachment_extensions` | `svg, html, xml, js, php, …` | Tipos sempre servidos como download — impede que um SVG com `<script>` corra na origem da app |
+| `search.cache_seconds` | `10`         | Cache do varrimento da pesquisa (0 desliga)                                       |
+| `share.expires_minutes` | `1440`      | Validade por omissão dos links de partilha                                       |
+| `audit.enabled`        | `true`       | Regista as operações que alteram ficheiros                                       |
+| `audit.channel`        | `null`       | Canal de log da auditoria (`null` = canal por omissão da app)                    |
 
 Variáveis `.env`: `FILE_MANAGER_DISK`, `FILE_MANAGER_ROOT`, `FILE_MANAGER_TRASH`,
 `FILE_MANAGER_TRASH_DAYS`, `FILE_MANAGER_MAX_UPLOAD`, `FILE_MANAGER_MEDIA_URL`,
-`FILE_MANAGER_ROUTE`, `FILE_MANAGER_ROUTE_PREFIX`.
+`FILE_MANAGER_ROUTE`, `FILE_MANAGER_ROUTE_PREFIX`, `FILE_MANAGER_SEARCH_CACHE`,
+`FILE_MANAGER_SHARE_MINUTES`, `FILE_MANAGER_AUDIT`, `FILE_MANAGER_AUDIT_CHANNEL`.
+
+### Nota sobre a rota de media
+
+A rota de media é **pública por omissão** (`route.media_middleware`): quem tiver
+o URL vê o ficheiro, sem autenticação. Isso é deliberado — permite embeber
+imagens em páginas públicas — mas implica que o URL é a única barreira. O lixo e
+os sidecars `.meta.json` **nunca** são servidos por esta rota. Para conteúdo que
+não deva ser público, use `share/` (assinado e temporário) ou proteja a rota
+acrescentando `auth` a `media_middleware`.
+
+---
+
+## Funcionalidades
+
+- **Ações em massa** (seleção múltipla + checkboxes): mover, copiar, duplicar, eliminar, restaurar, descarregar.
+- **Multi-raiz**: o `root_resolver` pode devolver um array de caminhos; cada raiz aparece na sidebar com a sua árvore.
+- **Ordenar** por nome (A–Z/Z–A), data (recentes/antigos) e tamanho (maiores/menores); **filtrar** por pastas/imagens/vídeos/ocultar pastas.
+- **Pesquisa recursiva** em toda a raiz efetiva (não só na pasta atual).
+- **Download**: individual (`GET media|download/<caminho>`) e **ZIP** de seleção/pastas (`POST download-zip`).
+- **Media com caminho direto no URL** (`…/media/pasta/ficheiro.ext`), **pública por omissão** (configurável via `route.media_middleware`).
+- **Upload por drag & drop** direto na dropzone do picker (`POST upload`).
+- **Picker** (`<x-file-manager::picker />`): prop `size` (`small` | `large` dropzone), pré-visualização com lightbox, e envio da **duração do vídeo** por `postMessage` ao escolher (`{ source:'file-manager', type:'video-duration', path, url, duration }`).
+- **Loader** enquanto qualquer media carrega (grelha, picker, lightbox).
 
 ---
 
