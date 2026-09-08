@@ -127,6 +127,7 @@
                 <div wire:key="root-{{ $root['path'] }}" class="mb-1">
                     <div wire:click="open(@js($root['path']))" @dragover.prevent
                         @drop.prevent="onDropMove($event, @js($root['path']))"
+                        @contextmenu.prevent="openMenu($event, { path: @js($root['path']), name: @js($root['label']), type: 'folder', isRoot: true })"
                         class="flex items-center gap-2 px-2 py-1.5 cursor-pointer rounded-md hover:bg-gray-100 text-sm"
                         :class="$wire.path === @js($root['path']) ? 'bg-gray-100 text-proximo-700 font-medium' : 'text-gray-700'">
                         <x-file-manager::icons.home class="h-4 w-4 text-proximo-800 shrink-0" />
@@ -158,7 +159,7 @@
             <div class="w-px bg-gray-200 group-hover:bg-proximo-400 transition-colors"
                 :class="dragging ? 'bg-proximo-500' : ''"></div>
             {{-- pega: pontos ao centro (indica que é arrastável) --}}
-            <div class="absolute top-1/2 -translate-y-1/2 flex flex-col items-center gap-[3px] rounded-full border border-gray-200 bg-white px-[3px] py-1.5 text-gray-400 shadow-sm group-hover:border-proximo-300 group-hover:text-proximo-500"
+            <div class="absolute top-1/2 -translate-y-1/2 flex flex-col items-center gap-[3px] rounded-full border border-gray-200 bg-white px-[3px] py-1.5 text-gray-400 shadow-sm group-hover:border-proximo-300 group-hover:text-proximo-600"
                 :class="dragging ? 'border-proximo-400 text-proximo-600' : ''">
                 <span class="h-[3px] w-[3px] rounded-full bg-current"></span>
                 <span class="h-[3px] w-[3px] rounded-full bg-current"></span>
@@ -374,7 +375,7 @@
                 @php $items = $this->files; @endphp
 
                 @if (count($items) === 0)
-                    <div x-show="pending.length === 0"
+                    <div x-show="pendingHere().length === 0"
                         class="flex flex-col items-center justify-center py-20 text-gray-400 min-h-full"
                         @click="selected = []" @contextmenu.prevent="openBackgroundMenu($event)">
                         <svg class="h-16 w-16 opacity-20 mb-4" fill="currentColor" viewBox="0 0 20 20">
@@ -388,7 +389,7 @@
 
                 @php $hasItems = count($items) > 0; @endphp
 
-                <div x-show="view === 'grid' && (@js($hasItems) || pending.length > 0)" x-cloak
+                <div x-show="view === 'grid' && (@js($hasItems) || pendingHere().length > 0)" x-cloak
                     @contextmenu.self.prevent="openBackgroundMenu($event)"
                     class="grid pt-2 grid-cols-[repeat(auto-fill,160px)] gap-2 justify-center content-start">
                     @foreach ($items as $file)
@@ -396,11 +397,11 @@
                     @endforeach
 
                     {{-- Placeholder por ficheiro em upload: nome + loader no lugar da miniatura. --}}
-                    <template x-for="p in pending" :key="p.id">
+                    <template x-for="p in pendingHere()" :key="p.id">
                         <div
                             class="relative w-40 p-4 border border-dashed border-proximo-300 bg-white/70 rounded-xl flex flex-col items-center justify-center text-center">
                             <div class="relative w-full h-24 flex items-center justify-center bg-gray-50 rounded-lg">
-                                <x-file-manager::icons.spinner class="h-6 w-6 text-proximo-500" />
+                                <x-file-manager::icons.spinner class="h-6 w-6 text-proximo-600" />
                             </div>
                             <p class="text-[11px] mt-2 truncate font-medium text-gray-600 w-full px-1" x-text="p.name"
                                 :title="p.name"></p>
@@ -412,7 +413,7 @@
                     </template>
                 </div>
 
-                <table x-show="view === 'list' && (@js($hasItems) || pending.length > 0)" x-cloak
+                <table x-show="view === 'list' && (@js($hasItems) || pendingHere().length > 0)" x-cloak
                         class="w-full text-left text-sm">
                         <thead class="bg-gray-50 sticky top-0 z-10 text-[11px] uppercase tracking-wide text-gray-600">
                             <tr>
@@ -433,10 +434,10 @@
                             @foreach ($items as $file)
                                 @include('file-manager::livewire.partials.list-item', ['file' => $file])
                             @endforeach
-                            <template x-for="p in pending" :key="p.id">
+                            <template x-for="p in pendingHere()" :key="p.id">
                                 <tr class="text-gray-500">
                                     <td class="px-3 py-2 text-center">
-                                        <x-file-manager::icons.spinner class="h-4 w-4 text-proximo-500 inline-block" />
+                                        <x-file-manager::icons.spinner class="h-4 w-4 text-proximo-600 inline-block" />
                                     </td>
                                     <td class="px-4 py-2 truncate" x-text="p.name"></td>
                                     <td class="px-3 py-2 text-center" x-text="(p.progress || 0) + '%'"></td>
@@ -464,12 +465,12 @@
     {{-- Barra de progresso de upload. "absolute" (e não "fixed") para ficar
          ancorada ao .fm-root — dentro do modal do picker, "fixed" colava-a ao
          canto da janela, fora do gestor. --}}
-    <div x-show="pending.length > 0" x-cloak
+    <div x-show="pendingHere().length > 0" x-cloak
         class="absolute bottom-6 right-6 z-40 w-44 rounded-lg bg-white/95 border border-gray-200 shadow-lg p-2">
         <div class="flex items-center gap-2 mb-1.5">
-            <x-file-manager::icons.spinner class="h-3.5 w-3.5 text-proximo-500" />
+            <x-file-manager::icons.spinner class="h-3.5 w-3.5 text-proximo-600" />
             <span class="text-[11px] text-gray-600 truncate"
-                x-text="pending.length + ' · ' + uploadProgress() + '%'"></span>
+                x-text="pendingHere().length + ' · ' + uploadProgress() + '%'"></span>
         </div>
         <div class="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
             <div class="h-full bg-proximo-500 transition-all duration-200" :style="`width:${uploadProgress()}%`"></div>

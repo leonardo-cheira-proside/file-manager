@@ -1,4 +1,5 @@
 @assets
+@include('file-manager::livewire.partials.thumb-cache')
 <script>
     // Remove a extensão do nome (para pré-preencher o campo de renomear).
     window.fmStripExt = function (file) {
@@ -170,6 +171,13 @@
             // ---------- Menu de contexto ----------
             openMenu(e, file) {
                 e.preventDefault(); e.stopPropagation();
+                // A raiz age sobre si própria e nunca entra na seleção múltipla,
+                // senão as ações em massa da barra passavam a apontar-lhe.
+                if (file.isRoot) {
+                    this.selected = [];
+                    this.menu = { open: true, x: e.clientX, y: e.clientY, file, files: [] };
+                    return;
+                }
                 if (!this.isSelected(file.path)) this.selected = [file.path];
                 this.menu = { open: true, x: e.clientX, y: e.clientY, file, files: [...this.selected] };
             },
@@ -259,9 +267,11 @@
             // O servidor só sabe do ficheiro no fim, por isso este estado é do cliente.
             startUpload(files) {
                 if (!files || !files.length) return;
+                const folder = this.$wire.path;
                 const batch = files.map((f) => ({
                     id: (crypto.randomUUID ? crypto.randomUUID() : String(Math.random())),
                     name: f.name,
+                    path: folder,
                     progress: 0,
                 }));
                 this.pending.push(...batch);
@@ -271,9 +281,15 @@
                     batch.forEach((b) => { b.progress = pct; });
                 });
             },
+            // O indicador de upload pertence à pasta de destino: navegar para
+            // outra pasta não arrasta os placeholders atrás.
+            pendingHere() {
+                return this.pending.filter((p) => p.path === this.$wire.path);
+            },
             uploadProgress() {
-                if (!this.pending.length) return 0;
-                return Math.round(this.pending.reduce((a, p) => a + (p.progress || 0), 0) / this.pending.length);
+                const here = this.pendingHere();
+                if (!here.length) return 0;
+                return Math.round(here.reduce((a, p) => a + (p.progress || 0), 0) / here.length);
             },
 
             // ---------- Partilha ----------

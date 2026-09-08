@@ -50,6 +50,8 @@
     ]);
 @endphp
 
+@include('file-manager::livewire.partials.thumb-cache')
+
 <div x-data="{
     open: false,
     selected: @js($initial),
@@ -176,17 +178,17 @@
 
             {{-- Com conteúdo: media a preencher + X (bola vermelha) + "Trocar conteúdo". --}}
             <template x-if="selected.length && !isBroken(selected[0])">
-                <div x-data="{ l: false }" class="absolute inset-0 bg-gray-50">
+                <div x-data="fmThumb(() => preview(selected[0]))" class="absolute inset-0 bg-gray-50">
                     <div x-show="!l && isMedia(selected[0])"
-                        class="absolute inset-0 flex items-center justify-center text-gray-300">
+                        class="absolute inset-0 flex items-center justify-center text-proximo-600">
                         <x-file-manager::icons.spinner class="h-8 w-8" />
                     </div>
                     <template x-if="isImage(selected[0])"><img :src="preview(selected[0])"
                             class="w-full h-full object-contain cursor-zoom-in" @click="openLight(selected[0])"
-                            x-on:load="l = true" @@error="markBroken(selected[0]); l = true" alt=""></template>
+                            x-on:load="markLoaded()" @@error="markBroken(selected[0]); l = true" alt=""></template>
                     <template x-if="isVideo(selected[0])"><video :src="preview(selected[0])"
                             class="w-full h-full object-contain cursor-zoom-in" muted @click="openLight(selected[0])"
-                            x-on:loadedmetadata="l = true" @@error="markBroken(selected[0]); l = true"></video></template>
+                            x-on:loadedmetadata="markLoaded()" @@error="markBroken(selected[0]); l = true"></video></template>
                     <template x-if="!isMedia(selected[0])">
                         <div class="w-full h-full flex flex-col items-center justify-center gap-2 text-gray-400">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12" fill="none" viewBox="0 0 24 24"
@@ -236,17 +238,17 @@
         <template x-for="(path, i) in selected" :key="path">
             {{-- Só mostra o tile quando a media existe (imagem/vídeo carrega). Se falhar, esconde tudo. --}}
             <div class="relative group flex items-center" x-show="!isBroken(path)">
-                <div x-data="{ l: false }"
+                <div x-data="fmThumb(() => preview(path))"
                     class="relative w-16 h-16 rounded-lg overflow-hidden bg-gray-100 border border-gray-200 flex items-center justify-center shrink-0"
                     :class="isMedia(path) ? 'cursor-zoom-in' : ''" :title="path" @click="openLight(path)">
                     <div x-show="!l && isMedia(path)"
-                        class="absolute inset-0 flex items-center justify-center text-gray-300">
+                        class="absolute inset-0 flex items-center justify-center text-proximo-600">
                         <x-file-manager::icons.spinner class="h-5 w-5" />
                     </div>
                     <template x-if="isImage(path)"><img :src="preview(path)" class="w-full h-full object-cover"
-                            loading="lazy" x-on:load="l = true" @@error="markBroken(path); l = true" alt=""></template>
+                            loading="lazy" x-on:load="markLoaded()" @@error="markBroken(path); l = true" alt=""></template>
                     <template x-if="isVideo(path)"><video :src="preview(path)" class="w-full h-full object-cover"
-                            muted x-on:loadedmetadata="l = true" @@error="markBroken(path); l = true"></video></template>
+                            muted x-on:loadedmetadata="markLoaded()" @@error="markBroken(path); l = true"></video></template>
                     <template x-if="!isImage(path) && !isVideo(path)">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-400" fill="none"
                             viewBox="0 0 24 24" stroke="currentColor">
@@ -294,18 +296,18 @@
 
     {{-- Lightbox: ver imagem/vídeo selecionado em grande. --}}
     <div x-show="light.open" x-cloak @click="light.open = false" @keydown.escape.window="light.open = false"
-        x-data="{ l: false }" x-effect="light.open; l = false"
+        x-data="fmThumb(() => light.url)" x-effect="light.open, light.url; syncThumb()"
         class="fixed inset-0 bg-black/80 flex items-center justify-center z-[10000] p-6 cursor-zoom-out">
-        <div x-show="!l" class="absolute inset-0 flex items-center justify-center text-white/70">
+        <div x-show="!l" class="absolute inset-0 flex items-center justify-center text-proximo-500">
             <x-file-manager::icons.spinner class="h-10 w-10" />
         </div>
         <template x-if="!light.video">
             <img :src="light.url" class="max-w-[92vw] max-h-[92vh] object-contain rounded" @click.stop alt=""
-                x-on:load="l = true" x-on:error="l = true">
+                x-on:load="markLoaded()" x-on:error="l = true">
         </template>
         <template x-if="light.video">
             <video :src="light.url" controls autoplay class="max-w-[92vw] max-h-[92vh] rounded" @click.stop
-                x-on:loadedmetadata="l = true" x-on:error="l = true"></video>
+                x-on:loadedmetadata="markLoaded()" x-on:error="l = true"></video>
         </template>
     </div>
 </div>

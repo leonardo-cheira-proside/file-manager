@@ -60,7 +60,7 @@
                         <span x-text="menu.file.type === 'video' ? '@lang('file-manager::file-manager.view_video')' : '@lang('file-manager::file-manager.view_image')'"></span>
                     </button>
                 </template>
-                <button type="button"
+                <button type="button" x-show="!menu.file.isRoot"
                     @click="openModal({ action: 'rename', file: menu.file, text: fmStripExt(menu.file) })"
                     class="w-full text-left px-4 py-2.5 hover:bg-proximo-50 flex items-center gap-2">
                     <x-file-manager::icons.rename class="h-4 w-4 text-proximo-600" />
@@ -105,7 +105,7 @@
                     <x-file-manager::icons.duplicate class="h-4 w-4 text-proximo-600" />
                     <span>@lang('file-manager::file-manager.copy_to')</span>
                 </button>
-                <button type="button" @click="openMoveModal()"
+                <button type="button" @click="openMoveModal()" x-show="!menu.file.isRoot"
                     class="w-full text-left px-4 py-2.5 hover:bg-proximo-50 flex items-center gap-2">
                     <x-file-manager::icons.move-folder class="h-4 w-4 text-proximo-600" />
                     <span>@lang('file-manager::file-manager.move_to')</span>
@@ -113,8 +113,8 @@
             </div>
         </template>
 
-        {{-- Eliminar --}}
-        <template x-if="menu.file && menu.file.type !== 'background'">
+        {{-- Eliminar (nunca na pasta principal) --}}
+        <template x-if="menu.file && menu.file.type !== 'background' && !menu.file.isRoot">
             <div>
                 <div class="border-t border-gray-100 my-1"></div>
                 <button type="button" @click="openModal({ action: 'delete', file: menu.file })"

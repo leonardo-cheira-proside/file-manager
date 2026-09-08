@@ -28,19 +28,19 @@
             {{ $file['name'] }}</p>
         <span class="text-[10px] text-gray-400 mt-1">@lang('file-manager::file-manager.folder')</span>
     @else
-        <div @if (in_array($file['type'], ['image', 'video'])) x-data="{ l: false }" @endif
+        <div @if (in_array($file['type'], ['image', 'video'])) x-data="fmThumb(@js($file['url']))" @endif
             class="relative w-full h-24 flex items-center justify-center bg-gray-50 rounded-lg p-1 overflow-hidden">
             @if (in_array($file['type'], ['image', 'video']))
-                <div x-show="!l" class="absolute inset-0 flex items-center justify-center text-gray-300">
+                <div x-show="!l" class="absolute inset-0 flex items-center justify-center text-proximo-600">
                     <x-file-manager::icons.spinner class="h-6 w-6" />
                 </div>
             @endif
             @if ($file['type'] === 'image')
                 <img src="{{ $file['url'] }}" loading="lazy" class="max-h-full max-w-full object-contain rounded"
-                    draggable="false" alt="{{ $file['name'] }}" x-on:load="l = true" x-on:error="l = true">
+                    draggable="false" alt="{{ $file['name'] }}" x-on:load="markLoaded()" x-on:error="l = true">
             @elseif ($file['type'] === 'video')
                 <video src="{{ $file['url'] }}#t=0.5" preload="metadata" muted
-                    class="max-h-full max-w-full object-cover rounded" x-on:loadedmetadata="l = true"
+                    class="max-h-full max-w-full object-cover rounded" x-on:loadedmetadata="markLoaded()"
                     x-on:error="l = true"></video>
             @else
                 @include('file-manager::livewire.partials.file-icon', ['file' => $file, 'class' => 'h-14 w-14'])

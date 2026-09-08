@@ -76,6 +76,18 @@ class FileManagerService
         return $this->guard->trashRoot();
     }
 
+    /**
+     * Uma raiz efetiva (ou a raiz da config) é o chão do utilizador: não pode
+     * ser eliminada, renomeada nem movida. Sem isto, apagá-la manda todo o
+     * conteúdo para o lixo e renomeá-la move-a para fora do próprio âmbito.
+     */
+    public function isRoot(string $path): bool
+    {
+        $path = trim(str_replace('\\', '/', $path), '/');
+
+        return $path === $this->configRoot || in_array($path, $this->effectiveRoots, true);
+    }
+
     public function isScoped(): bool
     {
         return $this->scoped;
@@ -305,7 +317,7 @@ class FileManagerService
             } catch (\Throwable $e) {
                 continue;
             }
-            if (! $this->exists($path)) {
+            if (! $this->exists($path) || $this->isRoot($path)) {
                 continue;
             }
             $target = $this->uniquePath($path);
@@ -376,6 +388,10 @@ class FileManagerService
         $path = $this->guard->normalize($path);
         $newName = $this->guard->sanitizeName($newName);
 
+        if ($this->isRoot($path)) {
+            throw new \InvalidArgumentException('A pasta principal não pode ser renomeada.');
+        }
+
         $dir = $this->dirname($path);
         $isDir = $this->isDirectory($path);
 
@@ -391,6 +407,8 @@ class FileManagerService
         if ($target === $path) {
             return $path;
         }
+
+        $this->guard->normalize($target);
 
         $target = $this->uniquePath($target);
         $this->disk->move($path, $target);
@@ -425,6 +443,12 @@ class FileManagerService
                 $item = $this->guard->normalize($item);
             } catch (\Throwable $e) {
                 $results[] = ['from' => $item, 'success' => false, 'message' => 'Caminho inválido'];
+
+                continue;
+            }
+
+            if ($this->isRoot($item)) {
+                $results[] = ['from' => $item, 'success' => false, 'message' => 'A pasta principal não pode ser movida'];
 
                 continue;
             }
@@ -554,6 +578,12 @@ class FileManagerService
         foreach ($paths as $path) {
             try {
                 $path = $this->guard->normalize($path);
+
+                if ($this->isRoot($path)) {
+                    $results[] = ['from' => $path, 'success' => false, 'message' => 'A pasta principal não pode ser eliminada'];
+
+                    continue;
+                }
 
                 if ($this->guard->isTrash($path) || !$this->exists($path)) {
                     $results[] = ['from' => $path, 'success' => false, 'message' => 'Item indisponível'];

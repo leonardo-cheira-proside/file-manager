@@ -142,4 +142,96 @@ class SecurityTest extends TestCase
 
         $this->assertStringContainsString('inline', $r->headers->get('Content-Disposition'));
     }
+
+    // ---------- A pasta principal é intocável ----------
+
+    public function test_scoped_user_cannot_trash_own_root(): void
+    {
+        config(['file-manager.root_resolver' => fn () => 'conteudos/optivisao']);
+        $s = new FileManagerService();
+        Storage::disk('fm-test')->put('conteudos/optivisao/dados.txt', 'x');
+
+        $results = $s->trash(['conteudos/optivisao']);
+
+        $this->assertFalse($results[0]['success']);
+        $this->assertTrue($s->exists('conteudos/optivisao/dados.txt'));
+    }
+
+    public function test_full_access_user_cannot_trash_config_root(): void
+    {
+        $s = new FileManagerService();
+        Storage::disk('fm-test')->put('conteudos/a.txt', 'x');
+
+        $results = $s->trash(['conteudos']);
+
+        $this->assertFalse($results[0]['success']);
+        $this->assertTrue($s->exists('conteudos/a.txt'));
+    }
+
+    public function test_renaming_own_root_is_refused(): void
+    {
+        config(['file-manager.root_resolver' => fn () => 'conteudos/optivisao']);
+        $s = new FileManagerService();
+        Storage::disk('fm-test')->put('conteudos/optivisao/dados.txt', 'x');
+
+        try {
+            $s->rename('conteudos/optivisao', 'outra');
+            $this->fail('devia ter recusado');
+        } catch (\InvalidArgumentException $e) {
+            // esperado
+        }
+
+        $this->assertTrue($s->exists('conteudos/optivisao/dados.txt'));
+        $this->assertFalse(Storage::disk('fm-test')->exists('conteudos/outra'));
+    }
+
+    public function test_rename_with_traversal_in_the_name_stays_inside_the_root(): void
+    {
+        config(['file-manager.root_resolver' => fn () => 'conteudos/optivisao']);
+        $s = new FileManagerService();
+        Storage::disk('fm-test')->put('conteudos/optivisao/a.txt', 'x');
+
+        // sanitizeName() neutraliza as barras: vira um nome literal, não um salto.
+        $target = $s->rename('conteudos/optivisao/a.txt', '../../fuga');
+
+        $this->assertStringStartsWith('conteudos/optivisao/', $target);
+        $this->assertTrue($s->exists($target));
+        $this->assertFalse(Storage::disk('fm-test')->exists('fuga.txt'));
+        $this->assertFalse(Storage::disk('fm-test')->exists('conteudos/fuga.txt'));
+    }
+
+    public function test_moving_own_root_is_refused(): void
+    {
+        config(['file-manager.root_resolver' => fn () => 'conteudos/optivisao']);
+        $s = new FileManagerService();
+        $s->createFolder('conteudos/optivisao', 'destino');
+
+        $results = $s->move(['conteudos/optivisao'], 'conteudos/optivisao/destino');
+
+        $this->assertFalse($results[0]['success']);
+        $this->assertTrue($s->exists('conteudos/optivisao'));
+    }
+
+    public function test_duplicating_root_does_not_write_outside_scope(): void
+    {
+        config(['file-manager.root_resolver' => fn () => 'conteudos/optivisao']);
+        $s = new FileManagerService();
+        Storage::disk('fm-test')->put('conteudos/optivisao/a.txt', 'x');
+
+        $out = $s->duplicate(['conteudos/optivisao']);
+
+        $this->assertSame([], $out);
+        $this->assertFalse(Storage::disk('fm-test')->exists('conteudos/optivisao (1)'));
+    }
+
+    public function test_isRoot_identifies_every_effective_root(): void
+    {
+        config(['file-manager.root_resolver' => fn () => ['conteudos/a', 'conteudos/b']]);
+        $s = new FileManagerService();
+
+        $this->assertTrue($s->isRoot('conteudos/a'));
+        $this->assertTrue($s->isRoot('conteudos/b'));
+        $this->assertTrue($s->isRoot('conteudos'));
+        $this->assertFalse($s->isRoot('conteudos/a/sub'));
+    }
 }
