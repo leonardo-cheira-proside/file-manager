@@ -358,17 +358,6 @@ class FileManager extends Component
         $this->guarded(fn () => $this->service()->duplicate((array) $paths));
     }
 
-    /** Gera um link de partilha assinado e devolve-o ao cliente para copiar. */
-    public function share(string $path): void
-    {
-        try {
-            $url = $this->service()->shareUrl($path);
-            $this->dispatch('fm-share-link', url: $url);
-        } catch (\Throwable $e) {
-            $this->error = __('file-manager::file-manager.operation_failed');
-        }
-    }
-
     public function dismissError(): void
     {
         $this->error = '';

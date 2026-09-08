@@ -25,6 +25,7 @@ e usa a autenticação/sessão existente.
 - Pesquisa funcional por nome _(o FM antigo não pesquisava)_
 - Pronto para **picker** de ficheiros em formulários (`<x-file-manager::picker>`)
 - Multi-disco (local/public, S3, …) via Filesystem do Laravel
+- **Copiar URL** de um ficheiro a partir do menu de contexto
 - Traduções PT/EN, totalmente publicáveis
 
 ---
@@ -154,20 +155,14 @@ O sidecar `.meta.json` mantém-se, mas só guarda o prazo de expiração.
 > respetivo `originalPath` prefixado por `apagados/`, ou esvazie o lixo antes
 > de atualizar.
 
-### Partilha por link assinado
+### Copiar URL
 
-`GET file-manager/share/<caminho>` serve um ficheiro através de um URL assinado
-e temporário, gerado pelo menu de contexto ("Copiar link de partilha") ou por
-código:
+O menu de contexto de um ficheiro tem **Copiar URL**, que copia o endereço de
+media (`…/file-manager/media/conteudos/…`) para a área de transferência.
 
-```php
-app(\Proside\FileManager\Support\FileManagerService::class)
-    ->shareUrl('conteudos/optivisao/contrato.pdf', minutes: 60);
-```
-
-A autorização é a assinatura, não a sessão: o link funciona para quem o receber,
-expira, e alterar o caminho invalida-o. Ao contrário do URL de media (público e
-permanente), é a forma indicada para partilhar conteúdo com terceiros.
+A cópia é feita inteiramente no cliente: o URL já vem em cada item da listagem,
+por isso não há pedido ao servidor. É um endereço público e permanente — vale
+o que a rota de media valer (ver a nota mais abaixo).
 
 ### Auditoria
 
@@ -199,14 +194,13 @@ O resolver pode ser um **class-string invocável** (compatível com `config:cach
 | `route.*`              | —            | Prefixo, middleware e rota full-page                                             |
 | `attachment_extensions` | `svg, html, xml, js, php, …` | Tipos sempre servidos como download — impede que um SVG com `<script>` corra na origem da app |
 | `search.cache_seconds` | `10`         | Cache do varrimento da pesquisa (0 desliga)                                       |
-| `share.expires_minutes` | `1440`      | Validade por omissão dos links de partilha                                       |
 | `audit.enabled`        | `true`       | Regista as operações que alteram ficheiros                                       |
 | `audit.channel`        | `null`       | Canal de log da auditoria (`null` = canal por omissão da app)                    |
 
 Variáveis `.env`: `FILE_MANAGER_DISK`, `FILE_MANAGER_ROOT`, `FILE_MANAGER_TRASH`,
 `FILE_MANAGER_TRASH_DAYS`, `FILE_MANAGER_MAX_UPLOAD`, `FILE_MANAGER_MEDIA_URL`,
 `FILE_MANAGER_ROUTE`, `FILE_MANAGER_ROUTE_PREFIX`, `FILE_MANAGER_SEARCH_CACHE`,
-`FILE_MANAGER_SHARE_MINUTES`, `FILE_MANAGER_AUDIT`, `FILE_MANAGER_AUDIT_CHANNEL`.
+`FILE_MANAGER_AUDIT`, `FILE_MANAGER_AUDIT_CHANNEL`.
 
 ### Nota sobre a rota de media
 
@@ -214,8 +208,8 @@ A rota de media é **pública por omissão** (`route.media_middleware`): quem ti
 o URL vê o ficheiro, sem autenticação. Isso é deliberado — permite embeber
 imagens em páginas públicas — mas implica que o URL é a única barreira. O lixo e
 os sidecars `.meta.json` **nunca** são servidos por esta rota. Para conteúdo que
-não deva ser público, use `share/` (assinado e temporário) ou proteja a rota
-acrescentando `auth` a `media_middleware`.
+não deva ser público, proteja a rota acrescentando `auth` a `media_middleware`.
+É esse o endereço que a ação **Copiar URL** coloca na área de transferência.
 
 ---
 

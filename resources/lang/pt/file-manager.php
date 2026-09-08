@@ -87,7 +87,7 @@ return [
 
     // Erros, partilha e progresso de upload
     'operation_failed' => 'Não foi possível concluir a operação.',
-    'share' => 'Copiar link de partilha',
-    'share_copied' => 'Link copiado para a área de transferência.',
+    'copy_url' => 'Copiar URL',
+    'url_copied' => 'URL copiado para a área de transferência.',
     'uploading_file' => 'A carregar…',
 ];

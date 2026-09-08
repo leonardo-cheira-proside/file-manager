@@ -78,12 +78,12 @@
                 <span>@lang('file-manager::file-manager.download')</span>
             </button>
         </template>
-        {{-- Link de partilha assinado (só para um ficheiro) --}}
+        {{-- Copiar o URL de media do ficheiro --}}
         <template x-if="menu.files.length <= 1 && menu.file && ['image','video','other'].includes(menu.file.type)">
-            <button type="button" @click="$wire.share(menu.file.path); menu.open = false"
+            <button type="button" @click="copyUrl(menu.file)"
                 class="w-full text-left px-4 py-2.5 hover:bg-proximo-50 flex items-center gap-2">
                 <x-file-manager::icons.clipboard class="h-4 w-4 text-proximo-600" />
-                <span>@lang('file-manager::file-manager.share')</span>
+                <span>@lang('file-manager::file-manager.copy_url')</span>
             </button>
         </template>
 

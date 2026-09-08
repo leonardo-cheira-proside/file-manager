@@ -6,7 +6,6 @@ use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use League\Flysystem\StorageAttributes;
 
@@ -716,7 +715,7 @@ class FileManagerService
     }
 
     // ===========================================================
-    // URL / media / partilha
+    // URL / media
     // ===========================================================
 
     public function mediaUrl(string $path): string
@@ -747,32 +746,6 @@ class FileManagerService
         $encoded = implode('/', array_map('rawurlencode', explode('/', $path)));
 
         return url($prefix . '/media/' . $encoded);
-    }
-
-    /**
-     * Link de partilha assinado e temporário. Ao contrário do URL de media
-     * (que é público e permanente), este expira e é inviolável — alterar o
-     * caminho invalida a assinatura.
-     */
-    public function shareUrl(string $path, ?int $minutes = null): string
-    {
-        $path = $this->guard->normalize($path);
-
-        if (! $this->disk->fileExists($path)) {
-            throw new \InvalidArgumentException('Só é possível partilhar ficheiros.');
-        }
-
-        $minutes = $minutes ?: (int) config('file-manager.share.expires_minutes', 1440);
-
-        $url = URL::temporarySignedRoute(
-            'file-manager.share',
-            now()->addMinutes($minutes),
-            ['path' => $path],
-        );
-
-        $this->audit('share', ['path' => $path, 'minutes' => $minutes]);
-
-        return $url;
     }
 
     public function readStream(string $path)

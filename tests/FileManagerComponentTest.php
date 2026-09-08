@@ -146,15 +146,6 @@ class FileManagerComponentTest extends TestCase
             ->assertSee('a.png');
     }
 
-    public function test_share_dispatches_a_signed_link(): void
-    {
-        Storage::disk('fm-test')->put('conteudos/doc.txt', 'x');
-
-        Livewire::test(FileManager::class)
-            ->call('share', 'conteudos/doc.txt')
-            ->assertDispatched('fm-share-link');
-    }
-
     public function test_upload_places_file_in_current_folder(): void
     {
         Livewire::test(FileManager::class)
@@ -164,5 +155,25 @@ class FileManagerComponentTest extends TestCase
             ->assertOk();
 
         $this->assertTrue(Storage::disk('fm-test')->exists('conteudos/Destino/novo.png'));
+    }
+
+    public function test_listing_exposes_the_media_url_for_copying(): void
+    {
+        Storage::disk('fm-test')->put('conteudos/foto.png', 'x');
+
+        $files = Livewire::test(FileManager::class)->instance()->allFiles();
+
+        $this->assertCount(1, $files);
+        $this->assertStringContainsString('/file-manager/media/conteudos/foto.png', $files[0]['url']);
+    }
+
+    public function test_folders_have_no_url_to_copy(): void
+    {
+        Livewire::test(FileManager::class)->call('createFolder', 'Pasta', 'conteudos');
+
+        $files = Livewire::test(FileManager::class)->instance()->allFiles();
+
+        $this->assertSame('folder', $files[0]['type']);
+        $this->assertNull($files[0]['url']);
     }
 }

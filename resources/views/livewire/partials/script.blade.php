@@ -41,7 +41,6 @@
                 this.$root.addEventListener('fm-modal', (e) => this.openModal(e.detail));
                 // Ao mudar de pasta, desseleciona tudo e fecha o menu.
                 this.$wire.on('fm-navigated', () => { this.selected = []; this.menu.open = false; });
-                this.$wire.on('fm-share-link', (e) => this.copyShareLink((e && e.url) || (e && e[0] && e[0].url)));
             },
 
             // ---------- Seleção (cliente) ----------
@@ -292,21 +291,28 @@
                 return Math.round(here.reduce((a, p) => a + (p.progress || 0), 0) / here.length);
             },
 
-            // ---------- Partilha ----------
-            copyShareLink(url) {
+            // ---------- Copiar URL ----------
+            // O URL de media já vem no próprio item (data-fm-url), por isso
+            // isto é puramente do cliente — não há ida ao servidor.
+            copyUrl(file) {
+                const url = file && file.url;
                 if (!url) return;
+                this.menu.open = false;
+                this.writeClipboard(url);
+            },
+            writeClipboard(text) {
                 const show = () => {
-                    this.toast = @js(__('file-manager::file-manager.share_copied'));
+                    this.toast = @js(__('file-manager::file-manager.url_copied'));
                     setTimeout(() => { this.toast = ''; }, 2500);
                 };
                 if (navigator.clipboard && window.isSecureContext) {
-                    navigator.clipboard.writeText(url).then(show).catch(() => window.prompt('', url));
+                    navigator.clipboard.writeText(text).then(show).catch(() => window.prompt('', text));
                     return;
                 }
                 const ta = document.createElement('textarea');
-                ta.value = url; ta.style.position = 'fixed'; ta.style.opacity = '0';
+                ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
                 document.body.appendChild(ta); ta.select();
-                try { document.execCommand('copy'); show(); } catch (err) { window.prompt('', url); }
+                try { document.execCommand('copy'); show(); } catch (err) { window.prompt('', text); }
                 ta.remove();
             },
 

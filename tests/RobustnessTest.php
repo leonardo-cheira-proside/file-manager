@@ -258,49 +258,6 @@ class RobustnessTest extends TestCase
         $this->assertSame('.gitignore', $this->service()->guard()->sanitizeName('.gitignore'));
     }
 
-    // ---------- Partilha assinada ----------
-
-    public function test_share_link_serves_the_file(): void
-    {
-        $s = $this->service();
-        Storage::disk('fm-test')->put('conteudos/doc.txt', 'CONTEUDO');
-
-        $url = $s->shareUrl('conteudos/doc.txt');
-
-        $this->get($url)->assertOk();
-    }
-
-    public function test_share_link_rejects_a_tampered_path(): void
-    {
-        $s = $this->service();
-        Storage::disk('fm-test')->put('conteudos/doc.txt', 'x');
-        Storage::disk('fm-test')->put('conteudos/outro.txt', 'y');
-
-        $url = $s->shareUrl('conteudos/doc.txt');
-
-        $this->get(str_replace('doc.txt', 'outro.txt', $url))->assertForbidden();
-    }
-
-    public function test_share_link_expires(): void
-    {
-        $s = $this->service();
-        Storage::disk('fm-test')->put('conteudos/doc.txt', 'x');
-
-        $url = $s->shareUrl('conteudos/doc.txt', 60);
-
-        $this->travel(61)->minutes();
-        $this->get($url)->assertForbidden();
-    }
-
-    public function test_share_link_refuses_folders(): void
-    {
-        $s = $this->service();
-        $s->createFolder('conteudos', 'Pasta');
-
-        $this->expectException(\InvalidArgumentException::class);
-        $s->shareUrl('conteudos/Pasta');
-    }
-
     // ---------- Auditoria ----------
 
     public function test_destructive_operations_are_audited(): void

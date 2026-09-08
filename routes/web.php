@@ -3,7 +3,6 @@
 use Illuminate\Support\Facades\Route;
 use Proside\FileManager\Http\Controllers\DownloadController;
 use Proside\FileManager\Http\Controllers\MediaController;
-use Proside\FileManager\Http\Controllers\ShareController;
 use Proside\FileManager\Http\Controllers\UploadController;
 use Proside\FileManager\Http\Controllers\ZipController;
 
@@ -21,12 +20,6 @@ Route::prefix($prefix)
             ->where('path', '.*')
             ->middleware($mediaMiddleware)
             ->name('media');
-
-        // Link de partilha assinado e temporário: a autorização é a assinatura.
-        Route::get('share/{path}', ShareController::class)
-            ->where('path', '.*')
-            ->middleware($mediaMiddleware)
-            ->name('share');
 
         // Alterar (upload) e entrar no gestor: middleware protegido (auth).
         Route::middleware($middleware)->group(function () use ($config) {
