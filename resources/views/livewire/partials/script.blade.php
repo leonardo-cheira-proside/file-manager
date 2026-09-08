@@ -34,6 +34,8 @@
             moveModal: { open: false, target: '' },
             light: { open: false, url: '', type: '' },
             pending: [],
+            onLeave: null,
+            sweeper: null,
             toast: '',
 
             init() {
@@ -57,10 +59,22 @@
                     return '';
                 };
                 window.addEventListener('beforeunload', this.onLeave);
+
+                // Se o callback do Livewire nunca chegar (upload abortado, 503
+                // do servidor), o pendente ficava eterno: placeholder para
+                // sempre e, pior, o aviso acima a bloquear a navegação. Cada
+                // pendente é descartado se estiver 60s sem dar sinal.
+                this.sweeper = setInterval(() => {
+                    const cutoff = Date.now() - 60000;
+                    if (this.pending.some((p) => (p.at || 0) <= cutoff)) {
+                        this.pending = this.pending.filter((p) => (p.at || 0) > cutoff);
+                    }
+                }, 15000);
             },
 
             destroy() {
                 window.removeEventListener('beforeunload', this.onLeave);
+                clearInterval(this.sweeper);
             },
 
             // ---------- Seleção (cliente) ----------
@@ -291,10 +305,16 @@
                     id: (crypto.randomUUID ? crypto.randomUUID() : String(Math.random())),
                     name: f.name,
                     path: folder,
+                    at: Date.now(),
                 }));
                 this.pending.push(...batch);
                 const done = () => { this.pending = this.pending.filter((p) => !batch.includes(p)); };
-                this.$wire.uploadMultiple('uploads', files, done, done, () => {});
+                // O progresso já não desenha nada; serve só de sinal de vida
+                // para o varredor acima saber que o upload ainda está vivo.
+                this.$wire.uploadMultiple('uploads', files, done, done, () => {
+                    const now = Date.now();
+                    batch.forEach((b) => { b.at = now; });
+                });
             },
             // O indicador de upload pertence à pasta de destino: navegar para
             // outra pasta não arrasta os placeholders atrás.

@@ -76,12 +76,12 @@
                     window.fmLoadedThumbs.add(this.fmUrl());
                 },
                 syncThumb: function () {
-                    if (window.fmLoadedThumbs.has(this.fmUrl())) {
-                        this.l = true;
-                        return;
-                    }
-
-                    this.l = false;
+                    // A marca de "já vista" evita o piscar do loader, mas só
+                    // vale para imagens: um <video preload="none"> não carrega
+                    // nada por si, nem com os bytes em cache. Dá-lo por
+                    // carregado deixava a miniatura permanentemente vazia.
+                    this.l = window.fmLoadedThumbs.has(this.fmUrl())
+                        && !this.$el.querySelector('video');
 
                     var self = this;
                     this.$nextTick(function () {
@@ -96,18 +96,26 @@
                         if (el.tagName === 'VIDEO') {
                             if (el.readyState >= 1) {
                                 self.markLoaded();
-                            } else {
-                                self.watchVideo(el);
+
+                                return;
                             }
+                            self.l = false;
+                            self.watchVideo(el);
 
                             return;
                         }
                         if (el.complete && el.naturalWidth > 0) {
                             self.markLoaded();
+
+                            return;
                         }
+                        self.l = false;
                     });
                 },
                 watchVideo: function (v) {
+                    if (v.__fmWatched) return;
+                    v.__fmWatched = true;
+
                     var self = this, released = false, graceTimer;
 
                     function release() {
