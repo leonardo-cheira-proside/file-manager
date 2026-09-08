@@ -38,7 +38,8 @@
     );
 
     $pickerId = 'fmp_' . md5($inputName . uniqid('', true));
-    $mediaBase = route('file-manager.media');
+    // Base do URL de media (caminho vai direto no URL, sem ?path=).
+    $mediaBase = url(trim((string) (config('file-manager.route.prefix') ?? 'file-manager'), '/') . '/media');
 
     // Subtítulo da dropzone (variante large): formatos + tamanho máximo.
     $maxMb = max(1, (int) round(((int) config('file-manager.uploads.max_size', 51200)) / 1024));
@@ -79,7 +80,7 @@
     preview(path) {
         if (!path) return '';
         if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('/storage')) return path;
-        return this.mediaBase + '?path=' + encodeURIComponent(path);
+        return this.mediaBase + '/' + path.split('/').map(encodeURIComponent).join('/');
     },
     isImage(p) { return /\.(jpe?g|png|gif|webp|svg|bmp|avif)$/i.test(p || ''); },
     isVideo(p) { return /\.(mp4|webm|ogg|mov|m4v|avi)$/i.test(p || ''); },

@@ -89,6 +89,16 @@ class FileManagerComponentTest extends TestCase
         $this->assertTrue(Storage::disk('fm-test')->exists('conteudos/drop.png'));
     }
 
+    public function test_media_route_serves_by_clean_path(): void
+    {
+        Storage::disk('fm-test')->put('conteudos/sub/pic.png', 'x');
+
+        $res = $this->actingAs(new \Illuminate\Foundation\Auth\User())
+            ->get(url('file-manager/media/conteudos/sub/pic.png'));
+
+        $res->assertOk();
+    }
+
     public function test_delete_moves_to_trash(): void
     {
         Storage::disk('fm-test')->put('conteudos/a.png', 'x');

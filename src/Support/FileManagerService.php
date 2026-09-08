@@ -463,7 +463,7 @@ class FileManagerService
         $mode = config('file-manager.media_url', 'auto');
 
         if ($mode === 'route') {
-            return route('file-manager.media', ['path' => $path]);
+            return $this->routeMediaUrl($path);
         }
 
         try {
@@ -475,7 +475,16 @@ class FileManagerService
             // disco sem suporte a url() -> cai na rota
         }
 
-        return route('file-manager.media', ['path' => $path]);
+        return $this->routeMediaUrl($path);
+    }
+
+    /** URL de media com o caminho direto no URL (barras preservadas). */
+    public function routeMediaUrl(string $path): string
+    {
+        $prefix = trim((string) (config('file-manager.route.prefix') ?? 'file-manager'), '/');
+        $encoded = implode('/', array_map('rawurlencode', explode('/', $path)));
+
+        return url($prefix . '/media/' . $encoded);
     }
 
     public function readStream(string $path)

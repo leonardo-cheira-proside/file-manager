@@ -12,8 +12,9 @@ Route::middleware($middleware)
     ->prefix($prefix)
     ->name('file-manager.')
     ->group(function () use ($config) {
-        // Serve media (disco-agnóstico, respeita auth).
-        Route::get('media', MediaController::class)->name('media');
+        // Serve media (disco-agnóstico, respeita auth). O caminho vai direto no
+        // URL (ex.: /file-manager/media/pasta/ficheiro.png) em vez de ?path=.
+        Route::get('media/{path}', MediaController::class)->where('path', '.*')->name('media');
 
         // Upload direto (drag & drop do picker).
         Route::post('upload', UploadController::class)->name('upload');

@@ -16,8 +16,10 @@
             try {
                 $src = app(\Proside\FileManager\Support\FileManagerService::class)->mediaUrl($path);
             } catch (\Throwable $e) {
+                // Fallback: caminho direto no URL (barras preservadas).
+                $prefix = trim((string) (config('file-manager.route.prefix') ?? 'file-manager'), '/');
                 $src = \Illuminate\Support\Facades\Route::has('file-manager.media')
-                    ? route('file-manager.media', ['path' => $path])
+                    ? url($prefix . '/media/' . implode('/', array_map('rawurlencode', explode('/', $path))))
                     : '';
             }
         }

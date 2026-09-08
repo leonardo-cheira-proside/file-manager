@@ -13,12 +13,17 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class MediaController
 {
-    public function __invoke(Request $request, FileManagerService $service): StreamedResponse
+    public function __invoke(Request $request, FileManagerService $service, string $path): StreamedResponse
     {
-        $path = (string) $request->query('path', '');
-
         abort_if($path === '', 404);
-        abort_unless($service->exists($service->guard()->normalize($path)), 404);
+
+        try {
+            $path = $service->guard()->normalize($path);
+        } catch (\Throwable $e) {
+            abort(404);
+        }
+
+        abort_unless($service->exists($path), 404);
 
         $mime = $service->mimeType($path);
 
