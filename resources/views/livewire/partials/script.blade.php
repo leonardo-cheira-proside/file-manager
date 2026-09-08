@@ -8,16 +8,6 @@
         return i > 0 ? file.name.slice(0, i) : file.name;
     };
 
-    // Envia a duração do vídeo (segundos) para a janela pai via postMessage,
-    // quando os metadados carregam. Útil para embutir numa app externa (ex.: TV).
-    window.fmPostVideoDuration = function (video, url) {
-        if (!video || !isFinite(video.duration)) return;
-        const msg = { source: 'file-manager', type: 'video-duration', url: url || video.currentSrc, duration: video.duration };
-        [window.parent, window.top].forEach((w) => {
-            if (w && w !== window) { try { w.postMessage(msg, '*'); } catch (e) {} }
-        });
-    };
-
     // Formata o tempo restante (ms epoch) até à eliminação definitiva.
     window.fmTimeLeft = function (deleteAtMs) {
         const diff = deleteAtMs - Date.now();

@@ -71,6 +71,7 @@
         this.broken = {};
         this.selected = Array.isArray(p) ? p : (p ? [p] : []);
         this.open = false;
+        this.emitDurations(this.selected);
     },
     markBroken(path) {
         if (this.broken[path]) return; // já marcado: evita re-disparar reatividade (loop)
@@ -86,11 +87,20 @@
     isVideo(p) { return /\.(mp4|webm|ogg|mov|m4v|avi)$/i.test(p || ''); },
     isMedia(p) { return this.isImage(p) || this.isVideo(p); },
 
-    // Envia a duração do vídeo para a janela pai (postMessage), ao carregar metadados.
-    postDuration(v) {
-        if (!v || !isFinite(v.duration)) return;
-        const msg = { source: 'file-manager', type: 'video-duration', url: v.currentSrc, duration: v.duration };
-        [window.parent, window.top].forEach((w) => { if (w && w !== window) { try { w.postMessage(msg, '*'); } catch (e) {} } });
+    // Ao ESCOLHER (ou carregar) um vídeo, mede a duração num <video> escondido e
+    // envia-a por postMessage (para o programa pai atualizar um campo).
+    emitDurations(paths) {
+        (paths || []).filter((p) => this.isVideo(p)).forEach((p) => {
+            const v = document.createElement('video');
+            v.preload = 'metadata';
+            v.muted = true;
+            v.onloadedmetadata = () => {
+                if (!isFinite(v.duration)) return;
+                const msg = { source: 'file-manager', type: 'video-duration', path: p, url: v.src, duration: v.duration };
+                new Set([window, window.parent, window.top]).forEach((w) => { try { w.postMessage(msg, '*'); } catch (e) {} });
+            };
+            v.src = this.preview(p);
+        });
     },
 
     // Ver imagem/vídeo em grande (lightbox local do picker).
@@ -122,6 +132,7 @@
                     if (!d.path) return;
                     this.broken = {};
                     this.selected = this.multiple ? [...this.selected, d.path] : [d.path];
+                    this.emitDurations([d.path]);
                 })
                 .catch(() => {})
                 .finally(() => this.uploading--);
@@ -161,7 +172,7 @@
                             @@error="markBroken(selected[0])" alt=""></template>
                     <template x-if="isVideo(selected[0])"><video :src="preview(selected[0])"
                             class="w-full h-full object-contain cursor-zoom-in" muted @click="openLight(selected[0])"
-                            @loadedmetadata="postDuration($event.target)" @@error="markBroken(selected[0])"></video></template>
+                            @@error="markBroken(selected[0])"></video></template>
                     <template x-if="!isMedia(selected[0])">
                         <div class="w-full h-full flex flex-col items-center justify-center gap-2 text-gray-400">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12" fill="none" viewBox="0 0 24 24"
@@ -266,8 +277,7 @@
             <img :src="light.url" class="max-w-[92vw] max-h-[92vh] object-contain rounded" @click.stop alt="">
         </template>
         <template x-if="light.video">
-            <video :src="light.url" controls autoplay class="max-w-[92vw] max-h-[92vh] rounded" @click.stop
-                @loadedmetadata="postDuration($event.target)"></video>
+            <video :src="light.url" controls autoplay class="max-w-[92vw] max-h-[92vh] rounded" @click.stop></video>
         </template>
     </div>
 </div>
