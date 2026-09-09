@@ -156,6 +156,10 @@ class FileManagerService
     /**
      * Lista o conteúdo de uma pasta, aplicando filtro e ordenação.
      *
+     * As pastas ficam sempre na listagem em images/videos: sem elas o picker
+     * (filtro trancado) não tem por onde navegar e uma pasta só com subpastas
+     * aparece vazia. Para esconder pastas há o filtro dedicado "no-folder".
+     *
      * @param  string  $filter  all|folders|images|videos|no-folder|az|za
      * @return array<int,array<string,mixed>>
      */
@@ -168,8 +172,8 @@ class FileManagerService
 
         $result = match ($filter) {
             'folders' => $folders,
-            'images' => array_values(array_filter($files, fn ($f) => $f['type'] === 'image')),
-            'videos' => array_values(array_filter($files, fn ($f) => $f['type'] === 'video')),
+            'images' => [...$folders, ...array_filter($files, fn ($f) => $f['type'] === 'image')],
+            'videos' => [...$folders, ...array_filter($files, fn ($f) => $f['type'] === 'video')],
             'no-folder' => $files,
             default => [...$folders, ...$files],
         };

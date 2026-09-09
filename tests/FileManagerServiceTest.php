@@ -38,7 +38,7 @@ class FileManagerServiceTest extends TestCase
         $this->assertContains('pic.png', $names);
     }
 
-    public function test_filter_images_hides_folders_and_other_files(): void
+    public function test_filter_images_keeps_folders_and_hides_other_files(): void
     {
         $s = $this->service();
         $s->createFolder('conteudos', 'Sub');
@@ -48,8 +48,22 @@ class FileManagerServiceTest extends TestCase
         $types = array_column($s->listing('conteudos', 'images'), 'type');
 
         $this->assertContains('image', $types);
-        $this->assertNotContains('folder', $types);
+        $this->assertContains('folder', $types);
         $this->assertNotContains('other', $types);
+    }
+
+    public function test_filter_videos_keeps_folders_so_picker_can_navigate(): void
+    {
+        $s = $this->service();
+        $s->createFolder('conteudos', 'Sub');
+        $s->upload(UploadedFile::fake()->create('clip.mp4', 10), 'conteudos');
+        $s->upload(UploadedFile::fake()->image('pic.png'), 'conteudos');
+
+        $types = array_column($s->listing('conteudos', 'videos'), 'type');
+
+        $this->assertContains('video', $types);
+        $this->assertContains('folder', $types);
+        $this->assertNotContains('image', $types);
     }
 
     public function test_no_folder_filter_hides_folders_keeps_files(): void
