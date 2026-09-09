@@ -238,4 +238,21 @@ class FileManagerComponentTest extends TestCase
             ->call('storeUploads', 'conteudos')
             ->assertDispatched('file-manager-uploaded', count: 2);
     }
+
+    public function test_picker_only_preselects_paths_the_media_route_serves(): void
+    {
+        Storage::disk('fm-test')->put('conteudos/a.png', 'x');
+        Storage::disk('fm-test')->put('fora/b.png', 'x');
+        Storage::disk('fm-test')->put('apagados/conteudos/c.png', 'x');
+        $this->startSession();
+
+        $view = $this->blade('<x-file-manager::picker :value="$value" multiple />', [
+            'value' => ['conteudos/a.png', 'conteudos/falta.png', 'fora/b.png', 'apagados/conteudos/c.png'],
+        ]);
+
+        $view->assertSee('a.png', false);
+        $view->assertDontSee('falta.png', false);
+        $view->assertDontSee('b.png', false);
+        $view->assertDontSee('c.png', false);
+    }
 }

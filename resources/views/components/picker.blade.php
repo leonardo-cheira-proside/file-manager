@@ -16,12 +16,12 @@
             ? [$value]
             : []);
 
-    // Só pré-seleciona valores que realmente existem no disco. Assim, abrir o
-    // picker com um valor inexistente não seleciona nada (nem mostra tile
-    // partido, nem o submete no formulário). URLs/caminhos externos passam.
-    $fmDisk = \Illuminate\Support\Facades\Storage::disk(config('file-manager.disk'));
+    // Só pré-seleciona valores que a rota de media consegue servir: mesma
+    // regra (raízes do utilizador + ficheiro existente), senão um valor
+    // válido no disco mas fora do âmbito dava 404 e tile partido.
+    $fmService = app(\Proside\FileManager\Support\FileManagerService::class);
     $initial = array_values(
-        array_filter($rawInitial, function ($p) use ($fmDisk) {
+        array_filter($rawInitial, function ($p) use ($fmService) {
             $p = (string) $p;
             if ($p === '') {
                 return false;
@@ -30,7 +30,9 @@
                 return true; // URL externa: não dá para verificar aqui.
             }
             try {
-                return $fmDisk->exists($p);
+                $p = $fmService->guard()->normalize($p);
+
+                return ! $fmService->guard()->isTrash($p) && $fmService->disk()->fileExists($p);
             } catch (\Throwable $e) {
                 return false;
             }
@@ -56,7 +58,6 @@
     open: false,
     selected: @js($initial),
     mediaBase: @js($mediaBase),
-    broken: {},
     init() {
         // Forma canónica de ouvir um evento despachado por um componente Livewire.
         if (window.Livewire) {
@@ -70,16 +71,13 @@
         if (Array.isArray(e)) p = (e[0] && e[0].paths) ? e[0].paths : e;
         else if (e && e.paths !== undefined) p = e.paths;
         else if (e && e.detail !== undefined) p = e.detail.paths ?? e.detail;
-        this.broken = {};
         this.selected = Array.isArray(p) ? p : (p ? [p] : []);
         this.open = false;
         this.emitDurations(this.selected);
     },
-    markBroken(path) {
-        if (this.broken[path]) return; // já marcado: evita re-disparar reatividade (loop)
-        this.broken = { ...this.broken, [path]: true };
+    dropMissing(path) {
+        this.selected = this.selected.filter((p) => p !== path);
     },
-    isBroken(path) { return !!this.broken[path]; },
     preview(path) {
         if (!path) return '';
         if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('/storage')) return path;
@@ -142,7 +140,6 @@
                 .then((r) => r.ok ? r.json() : Promise.reject(r))
                 .then((d) => {
                     if (!d.path) return;
-                    this.broken = {};
                     this.selected = this.multiple ? [...this.selected, d.path] : [d.path];
                     this.emitDurations([d.path]);
                 })
@@ -151,7 +148,7 @@
         });
     },
 }" @file-manager-selected.window="applySelection($event.detail)"
-    @reset-file-picker.window="if (!$event.detail?.inputName || $event.detail.inputName === @js($inputName)) { selected = []; open = false; broken = {}; }"
+    @reset-file-picker.window="if (!$event.detail?.inputName || $event.detail.inputName === @js($inputName)) { selected = []; open = false; }"
     @keydown.escape.window="open = false" {{ $attributes->merge(['class' => 'w-full']) }}>
 
     @if ($size === 'large')
@@ -177,7 +174,7 @@
             </button>
 
             {{-- Com conteúdo: media a preencher + X (bola vermelha) + "Trocar conteúdo". --}}
-            <template x-if="selected.length && !isBroken(selected[0])">
+            <template x-if="selected.length">
                 <div x-data="fmThumb(() => preview(selected[0]))" class="absolute inset-0 bg-gray-50">
                     <div x-show="!l && isMedia(selected[0])"
                         class="absolute inset-0 flex items-center justify-center text-proximo-600">
@@ -185,10 +182,10 @@
                     </div>
                     <template x-if="isImage(selected[0])"><img :src="preview(selected[0])"
                             class="w-full h-full object-contain cursor-zoom-in" @click="openLight(selected[0])"
-                            x-on:load="markLoaded()" @@error="markBroken(selected[0]); l = true" alt=""></template>
+                            x-on:load="markLoaded()" @@error="dropMissing(selected[0])" alt=""></template>
                     <template x-if="isVideo(selected[0])"><video :src="preview(selected[0])"
                             class="w-full h-full object-contain cursor-zoom-in" muted @click="openLight(selected[0])"
-                            x-on:loadedmetadata="markLoaded()" @@error="markBroken(selected[0]); l = true"></video></template>
+                            x-on:loadedmetadata="markLoaded()" @@error="dropMissing(selected[0])"></video></template>
                     <template x-if="!isMedia(selected[0])">
                         <div class="w-full h-full flex flex-col items-center justify-center gap-2 text-gray-400">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12" fill="none" viewBox="0 0 24 24"
@@ -236,8 +233,7 @@
         </button>
 
         <template x-for="(path, i) in selected" :key="path">
-            {{-- Só mostra o tile quando a media existe (imagem/vídeo carrega). Se falhar, esconde tudo. --}}
-            <div class="relative group flex items-center" x-show="!isBroken(path)">
+            <div class="relative group flex items-center">
                 <div x-data="fmThumb(() => preview(path))"
                     class="relative w-16 h-16 rounded-lg overflow-hidden bg-gray-100 border border-gray-200 flex items-center justify-center shrink-0"
                     :class="isMedia(path) ? 'cursor-zoom-in' : ''" :title="path" @click="openLight(path)">
@@ -246,9 +242,9 @@
                         <x-file-manager::icons.spinner class="h-5 w-5" />
                     </div>
                     <template x-if="isImage(path)"><img :src="preview(path)" class="w-full h-full object-cover"
-                            loading="lazy" x-on:load="markLoaded()" @@error="markBroken(path); l = true" alt=""></template>
+                            loading="lazy" x-on:load="markLoaded()" @@error="dropMissing(path)" alt=""></template>
                     <template x-if="isVideo(path)"><video :src="preview(path)" class="w-full h-full object-cover"
-                            muted x-on:loadedmetadata="markLoaded()" @@error="markBroken(path); l = true"></video></template>
+                            muted x-on:loadedmetadata="markLoaded()" @@error="dropMissing(path)"></video></template>
                     <template x-if="!isImage(path) && !isVideo(path)">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-400" fill="none"
                             viewBox="0 0 24 24" stroke="currentColor">
