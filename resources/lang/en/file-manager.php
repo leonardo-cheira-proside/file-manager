@@ -91,4 +91,8 @@ return [
     'copy_url' => 'Copy URL',
     'url_copied' => 'URL copied to clipboard.',
     'uploading_file' => 'Uploading…',
+
+    // Confirmação de upload
+    'upload_success' => 'Upload complete',
+    'upload_success_body' => ':count file(s) uploaded successfully.',
 ];

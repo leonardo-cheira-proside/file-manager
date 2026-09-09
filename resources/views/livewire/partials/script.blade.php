@@ -34,6 +34,7 @@
             moveModal: { open: false, target: '' },
             light: { open: false, url: '', type: '' },
             pending: [],
+            uploadDone: { open: false, count: 0 },
             onLeave: null,
             sweeper: null,
             toast: '',
@@ -46,10 +47,11 @@
                 // Rede de segurança: o servidor confirma que o ficheiro chegou.
                 // Sem isto o placeholder podia sobrepor-se ao item já listado.
                 this.$wire.on('file-manager-uploaded', (e) => {
-                    const folder = (e && e.path) || (e && e[0] && e[0].path);
-                    this.pending = folder
-                        ? this.pending.filter((p) => p.path !== folder)
+                    const d = (e && e.path !== undefined) ? e : (e && e[0]) || {};
+                    this.pending = d.path
+                        ? this.pending.filter((p) => p.path !== d.path)
                         : [];
+                    this.uploadDone = { open: true, count: Number(d.count) || 0 };
                 });
                 // Sair a meio aborta o upload: o pedido morre com a página.
                 this.onLeave = (ev) => {
@@ -368,6 +370,7 @@
             },
 
             closeAll() {
+                this.uploadDone.open = false;
                 this.menu.open = false; this.modal.open = false; this.light.open = false;
                 this.moveModal.open = false; this.filterOpen = false; this.fabOpen = false;
             },

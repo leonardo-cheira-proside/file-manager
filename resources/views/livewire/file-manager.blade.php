@@ -489,6 +489,9 @@
     {{-- ===================== Modal (mover para…) ===================== --}}
     @include('file-manager::livewire.partials.move-modal')
 
+    {{-- ===================== Modal (upload concluído) ===================== --}}
+    @include('file-manager::livewire.partials.upload-done')
+
     {{-- ===================== Lightbox ===================== --}}
     @include('file-manager::livewire.partials.lightbox')
 

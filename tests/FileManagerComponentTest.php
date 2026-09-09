@@ -203,7 +203,7 @@ class FileManagerComponentTest extends TestCase
             ->set('uploads', [UploadedFile::fake()->image('foto.png')])
             ->call('open', 'conteudos')
             ->call('storeUploads', 'conteudos/Origem')
-            ->assertDispatched('file-manager-uploaded', path: 'conteudos/Origem');
+            ->assertDispatched('file-manager-uploaded', path: 'conteudos/Origem', count: 1);
     }
 
     public function test_upload_to_a_forbidden_folder_falls_back_to_root(): void
@@ -226,5 +226,16 @@ class FileManagerComponentTest extends TestCase
             ->call('storeUploads', 'apagados/conteudos');
 
         $this->assertFalse(Storage::disk('fm-test')->exists('apagados/conteudos/foto.png'));
+    }
+
+    public function test_upload_event_reports_how_many_files(): void
+    {
+        Livewire::test(FileManager::class)
+            ->set('uploads', [
+                UploadedFile::fake()->image('a.png'),
+                UploadedFile::fake()->image('b.png'),
+            ])
+            ->call('storeUploads', 'conteudos')
+            ->assertDispatched('file-manager-uploaded', count: 2);
     }
 }

@@ -413,7 +413,7 @@ class FileManager extends Component
             }
         });
 
-        $this->dispatch('file-manager-uploaded', path: $target);
+        $this->dispatch('file-manager-uploaded', path: $target, count: count($uploads));
     }
 
     // ===========================================================

@@ -90,4 +90,8 @@ return [
     'copy_url' => 'Copiar URL',
     'url_copied' => 'URL copiado para a área de transferência.',
     'uploading_file' => 'A carregar…',
+
+    // Confirmação de upload
+    'upload_success' => 'Upload concluído',
+    'upload_success_body' => ':count ficheiro(s) carregado(s) com sucesso.',
 ];
