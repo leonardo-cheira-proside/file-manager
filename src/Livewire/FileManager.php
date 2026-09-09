@@ -74,6 +74,12 @@ class FileManager extends Component
         return app(FileManagerService::class);
     }
 
+    /** Ecrã de espera enquanto o componente "lazy" não chega (modal do picker). */
+    public function placeholder(): \Illuminate\Contracts\View\View
+    {
+        return view('file-manager::livewire.partials.placeholder');
+    }
+
     // ===========================================================
     // Dados (computed)
     // ===========================================================

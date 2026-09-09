@@ -81,6 +81,7 @@ return [
     'oldest' => 'Mais antigos',
     'largest' => 'Maiores',
     'smallest' => 'Menores',
+    'loading' => 'A carregar…',
     'load_more' => 'Carregar mais',
     'upload_failed' => 'Falha ao carregar o ficheiro.',
     'wrong_type' => 'Tipo de ficheiro não permitido.',

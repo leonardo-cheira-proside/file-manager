@@ -69,6 +69,18 @@ content: [
 ],
 ```
 
+**Tailwind v4** não usa o `content` do `tailwind.config.js` e ignora por omissão
+tudo o que está no `.gitignore` — ou seja, o `vendor/`. No ficheiro CSS de
+entrada da app:
+
+```css
+@import "tailwindcss";
+@source "../../vendor/proside/file-manager/resources/views";
+```
+
+Recompile (`npm run build`) **depois** de cada `composer update` do package,
+senão as classes novas não entram no CSS e a UI aparece meio por estilizar.
+
 ### 4. Agendar a limpeza do lixo
 
 Em `app/Console/Kernel.php`:

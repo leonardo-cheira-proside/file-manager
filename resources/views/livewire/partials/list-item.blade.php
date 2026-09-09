@@ -3,11 +3,15 @@
     data-fm-name="{{ $file['name'] }}" data-fm-url="{{ $file['url'] }}" data-fm-ext="{{ $file['extension'] ?? '' }}"
     data-fm-size="{{ $file['sizeFormatted'] ?? '' }}" data-fm-modified="{{ $file['modified'] ?? '' }}"
     class="group cursor-pointer"
-    :class="isSelected(@js($file['path'])) ? 'bg-blue-100' : 'hover:bg-gray-50'"
+    :class="dropTarget === @js($file['path']) ? 'fm-drop' :
+        (isSelected(@js($file['path'])) ? 'bg-blue-100' : 'hover:bg-gray-50')"
     @click="toggleSelect(@js($file['path']), $event.shiftKey)" @dblclick="openItem({{ $fm }})"
     @contextmenu.prevent="openMenu($event, {{ $fm }})" draggable="true"
     @dragstart="onDragStart($event, {{ $fm }})"
-    @if ($file['type'] === 'folder') @dragover.prevent @drop.prevent="onDropMove($event, @js($file['path']))" @endif>
+    @if ($file['type'] === 'folder')
+        @dragover.prevent="onDragOverFolder($event, @js($file['path']))"
+        @dragleave="onDragLeaveFolder($event, @js($file['path']))"
+        @drop.prevent="onDropMove($event, @js($file['path']))" @endif>
     <td class="px-3 py-2 text-center w-10" @click.stop>
         <input type="checkbox" :checked="isSelected(@js($file['path']))"
             @change="toggleCheck(@js($file['path']))"

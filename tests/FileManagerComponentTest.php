@@ -255,4 +255,11 @@ class FileManagerComponentTest extends TestCase
         $view->assertDontSee('b.png', false);
         $view->assertDontSee('c.png', false);
     }
+
+    public function test_lazy_placeholder_renders(): void
+    {
+        $html = (new \Proside\FileManager\Livewire\FileManager)->placeholder()->render();
+
+        $this->assertStringContainsString('animateTransform', $html);
+    }
 }

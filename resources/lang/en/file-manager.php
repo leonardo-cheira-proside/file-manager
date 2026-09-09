@@ -82,6 +82,7 @@ return [
     'oldest' => 'Oldest',
     'largest' => 'Largest',
     'smallest' => 'Smallest',
+    'loading' => 'Loading…',
     'load_more' => 'Load more',
     'upload_failed' => 'Could not upload the file.',
     'wrong_type' => 'File type not allowed.',

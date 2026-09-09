@@ -1,5 +1,6 @@
 <div class="fm-root relative flex flex-col h-full w-full bg-gray-50 text-gray-800 select-none" x-data="fileManager({ picker: @js($pickerMode), multiple: @js($multiple), view: @js($viewMode), downloadBase: @js(url(trim((string) (config('file-manager.route.prefix') ?? 'file-manager'), '/') . '/download')), zipUrl: @js(route('file-manager.download-zip')), csrf: @js(csrf_token()) })"
-    @keydown.escape.window="closeAll()" @keydown.window="onShortcut($event)">
+    @keydown.escape.window="closeAll()" @keydown.window="onShortcut($event)"
+    @dragend.window="endDrag()" @drop.window="endDrag()">
     {{-- Estilos do componente inline: garantem que carregam em QUALQUER contexto
          (página inteira, embebido ou dentro do modal do picker), sem depender de
          `@assets` nem de `vendor:publish`. Sobretudo o [x-cloak], que esconde os
@@ -10,6 +11,7 @@
         }
 
         .fm-root {
+            position: relative;
             font-family: ui-sans-serif, system-ui, sans-serif;
         }
 
@@ -42,7 +44,58 @@
         .fm-check {
             accent-color: currentColor;
         }
+
+        /* Barra de progresso: toda em CSS próprio. Se a app não tiver o
+           Tailwind recompilado com as vistas do package, as utilitárias não
+           existem e o indicador desaparecia sem dar sinal. */
+        .fm-progress {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 50;
+            height: 2px;
+            overflow: hidden;
+            background: rgba(0, 0, 0, .06);
+        }
+
+        .fm-progress > span {
+            display: block;
+            height: 100%;
+            width: 25%;
+            background: currentColor;
+            animation: fm-progress 1s ease-in-out infinite;
+        }
+
+        @keyframes fm-progress {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(400%); }
+        }
+
+        /* Destaque do destino de um arrasto. Em CSS próprio (e não em
+           utilitárias) por dois motivos: funciona sem o Tailwind da app
+           recompilado, e o outline não empurra o layout como uma border
+           faria numa <tr> ou num tile já com border. */
+        .fm-root .fm-drop {
+            outline: 2px solid #2563eb;
+            outline-offset: -2px;
+            background: rgba(37, 99, 235, .1);
+        }
+
+        .fm-root .fm-dropzone {
+            outline: 2px dashed #2563eb;
+            outline-offset: -6px;
+            background: rgba(37, 99, 235, .06);
+        }
     </style>
+
+    {{-- Barra de progresso do topo: um só indicador para todos os pedidos ao
+         servidor (navegar, pesquisar, filtrar, ordenar, expandir a árvore,
+         carregar mais, upload). O .delay evita o pisca-pisca nos rápidos. --}}
+    <div wire:loading.delay.shortest class="fm-progress text-proximo-600" role="status"
+        aria-label="@lang('file-manager::file-manager.loading')">
+        <span></span>
+    </div>
 
     @php
         $crumbs = $this->breadcrumbs;
@@ -370,7 +423,7 @@
             <main class="relative flex-1 overflow-y-auto fm-scroll px-2 bg-white" wire:loading.class="opacity-60"
                 @click.self="selected = []" @contextmenu.self.prevent="openBackgroundMenu($event)"
                 @dragover.prevent="onDragOverUpload($event)" @dragleave="uploadHover = false"
-                @drop.prevent="onDropUpload($event)" :class="uploadHover ? 'bg-proximo-100/50' : ''">
+                @drop.prevent="onDropUpload($event)" :class="uploadHover ? 'fm-dropzone' : ''">
 
                 @php $items = $this->files; @endphp
 
@@ -457,7 +510,11 @@
 
                 @if ($this->hasMore)
                     <div class="flex justify-center py-4">
-                        <button type="button" wire:click="loadMore" class="{{ $tbBtn }}">
+                        <button type="button" wire:click="loadMore" wire:target="loadMore"
+                            wire:loading.attr="disabled" class="{{ $tbBtn }}">
+                            <span wire:loading wire:target="loadMore">
+                                <x-file-manager::icons.spinner class="h-4 w-4" />
+                            </span>
                             @lang('file-manager::file-manager.load_more')
                         </button>
                     </div>

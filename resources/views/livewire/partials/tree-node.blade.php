@@ -1,11 +1,14 @@
 {{-- Nó recursivo da árvore de diretórios --}}
 <li wire:key="tree-{{ $node['path'] }}" class="flex flex-col">
     <div class="flex items-center gap-2 px-2 py-1.5 cursor-pointer rounded-md hover:bg-gray-100 group"
-        :class="$wire.path === @js($node['path']) ? 'bg-gray-100 text-proximo-700' : 'text-gray-700'"
+        :class="dropTarget === @js($node['path']) ? 'fm-drop' :
+            ($wire.path === @js($node['path']) ? 'bg-gray-100 text-proximo-700' : 'text-gray-700')"
         wire:click="open('{{ $node['path'] }}')"
         @contextmenu.prevent="openMenu($event, { path: @js($node['path']), name: @js($node['name']), type: 'folder' })"
         draggable="true" @dragstart="onDragStart($event, { path: @js($node['path']), type: 'folder' })"
-        @dragover.prevent @drop.prevent="onDropMove($event, @js($node['path']))">
+        @dragover.prevent="onDragOverFolder($event, @js($node['path']))"
+        @dragleave="onDragLeaveFolder($event, @js($node['path']))"
+        @drop.prevent="onDropMove($event, @js($node['path']))">
         <svg class="h-4 w-4 shrink-0 text-proximo-600" fill="currentColor" viewBox="0 0 20 20">
             <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
         </svg>

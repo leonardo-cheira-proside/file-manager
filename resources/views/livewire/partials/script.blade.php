@@ -29,6 +29,10 @@
             filterOpen: false,
             fabOpen: false,
             uploadHover: false,
+            // Pasta sob o cursor durante um arrasto (destaque azul) e caminhos
+            // a ser arrastados (para não destacar a origem como destino).
+            dropTarget: '',
+            dragPaths: [],
             menu: { open: false, x: 0, y: 0, file: null, files: [] },
             modal: { open: false, action: null, type: null, text: '', path: '', file: null },
             moveModal: { open: false, target: '' },
@@ -281,8 +285,28 @@
                 const items = this.isSelected(file.path) ? [...this.selected] : [file.path];
                 e.dataTransfer.setData('application/x-fm', JSON.stringify(items));
                 e.dataTransfer.effectAllowed = 'move';
+                this.dragPaths = items;
             },
+            // Durante o dragover o conteúdo do dataTransfer está bloqueado; só
+            // os "types" é que se leem. Daí guardar a origem em dragPaths.
+            canDropOn(e, target) {
+                return [...(e.dataTransfer?.types || [])].includes('application/x-fm')
+                    && !this.dragPaths.includes(target);
+            },
+            onDragOverFolder(e, target) {
+                if (!this.canDropOn(e, target)) return;
+                e.dataTransfer.dropEffect = 'move';
+                this.dropTarget = target;
+            },
+            // Entrar num filho dispara dragleave no pai: sem esta guarda o
+            // destaque piscava a cada elemento por dentro da pasta.
+            onDragLeaveFolder(e, target) {
+                if (e.currentTarget.contains(e.relatedTarget)) return;
+                if (this.dropTarget === target) this.dropTarget = '';
+            },
+            endDrag() { this.dropTarget = ''; this.dragPaths = []; },
             onDropMove(e, target) {
+                this.endDrag();
                 const raw = e.dataTransfer.getData('application/x-fm');
                 if (!raw) return;
                 const items = JSON.parse(raw);

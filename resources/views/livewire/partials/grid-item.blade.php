@@ -3,12 +3,16 @@
     data-fm-name="{{ $file['name'] }}" data-fm-url="{{ $file['url'] }}" data-fm-ext="{{ $file['extension'] ?? '' }}"
     data-fm-size="{{ $file['sizeFormatted'] ?? '' }}" data-fm-modified="{{ $file['modified'] ?? '' }}"
     class="relative cursor-pointer w-40 p-4 border rounded-xl transition-all flex flex-col items-center justify-center text-center group"
-    :class="isSelected(@js($file['path'])) ? 'border-blue-400 bg-blue-100 ring-1 ring-blue-300' :
-        'border-transparent hover:bg-gray-100'"
+    :class="dropTarget === @js($file['path']) ? 'fm-drop' :
+        (isSelected(@js($file['path'])) ? 'border-blue-400 bg-blue-100 ring-1 ring-blue-300' :
+            'border-transparent hover:bg-gray-100')"
     title="{{ $file['name'] }}" @click="toggleSelect(@js($file['path']), $event.shiftKey)"
     @dblclick="openItem({{ $fm }})" @contextmenu.prevent="openMenu($event, {{ $fm }})"
     draggable="true" @dragstart="onDragStart($event, {{ $fm }})"
-    @if ($file['type'] === 'folder') @dragover.prevent @drop.prevent="onDropMove($event, @js($file['path']))" @endif>
+    @if ($file['type'] === 'folder')
+        @dragover.prevent="onDragOverFolder($event, @js($file['path']))"
+        @dragleave="onDragLeaveFolder($event, @js($file['path']))"
+        @drop.prevent="onDropMove($event, @js($file['path']))" @endif>
 
     {{-- Checkbox de seleção (visível no hover ou quando selecionado) --}}
     <div class="absolute top-2 left-2 z-10 transition-opacity"

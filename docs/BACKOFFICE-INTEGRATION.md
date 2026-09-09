@@ -60,8 +60,15 @@ No `tailwind.config.js` do Backoffice, adicione ao `content`:
 './vendor/proside/file-manager/resources/views/**/*.blade.php',
 ```
 
+Em Tailwind v4 o `content` não existe e o `vendor/` fica de fora por estar no `.gitignore`;
+aí é no CSS de entrada:
+
+```css
+@source "../../vendor/proside/file-manager/resources/views";
+```
+
 A paleta usada é a `proximo` padrão (igual ao antigo `proximo`), por isso não é preciso config extra.
-Recompile: `npm run build`.
+Recompile (`npm run build`) **a seguir a cada `composer update`** do package.
 
 ---
 
